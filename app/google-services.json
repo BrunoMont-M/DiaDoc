@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "936362884736",
+    "project_id": "diadoc-cgbm",
+    "storage_bucket": "diadoc-cgbm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:936362884736:android:fb58fe08c08b8291fdf065",
+        "android_client_info": {
+          "package_name": "com.example.diadoc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDViqo8qnkzY82zi7kmGFPn2y3BsngavDw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
