@@ -1,7 +1,7 @@
 package com.example.diadoc.model
 
 data class Alimento(
-    val idAlimento: String = "",
+    val codAlimento: String = "",
     val nombreAlimento: String = "",
     val codQRAlimento: String = "",
     val kcalBase: Double = 0.0,
