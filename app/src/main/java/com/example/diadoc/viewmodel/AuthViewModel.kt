@@ -9,6 +9,9 @@ import com.example.diadoc.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class AuthViewModel(
     private val authRepository: AuthRepository = AuthRepository(),
@@ -17,6 +20,9 @@ class AuthViewModel(
 
     private val _authState = MutableStateFlow<Resource<String>?>(null)
     val authState: StateFlow<Resource<String>?> = _authState
+
+    private val _resetPasswordState = MutableStateFlow<Resource<String>?>(null)
+    val resetPasswordState: StateFlow<Resource<String>?> = _resetPasswordState
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
@@ -28,16 +34,17 @@ class AuthViewModel(
     fun register(email: String, password: String, nombre: String) {
         viewModelScope.launch {
             _authState.value = Resource.Loading
-            // 1. Creamos el usuario en Firebase Auth
             val authResult = authRepository.registrarUsuario(email, password)
 
             if (authResult is Resource.Success) {
-                // 2. Si Auth tuvo éxito, guardamos sus datos en Firestore
                 val uid = authResult.data
+                val fechaActual = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
                 val nuevoUsuario = Usuario(
                     codUsuario = uid,
                     emailUsuario = email,
-                    nomYapeUsuario = nombre
+                    nomYapeUsuario = nombre,
+                    fechaRegistro = fechaActual
                 )
                 val guardadoExitoso = usuarioRepository.guardarUsuario(nuevoUsuario)
 
@@ -52,5 +59,23 @@ class AuthViewModel(
         }
     }
 
-    fun resetState() { _authState.value = null }
+    fun recuperarPassword(email: String) {
+        if (email.isBlank()) {
+            _resetPasswordState.value = Resource.Error("Por favor, ingresá tu email para recuperar la contraseña.")
+            return
+        }
+
+        viewModelScope.launch {
+            _resetPasswordState.value = Resource.Loading
+            _resetPasswordState.value = authRepository.recuperarPassword(email)
+        }
+    }
+
+    fun resetState() {
+        _authState.value = null
+    }
+
+    fun clearResetPasswordState() {
+        _resetPasswordState.value = null
+    }
 }
