@@ -22,7 +22,6 @@ class PatologiaRepository(private val db: FirebaseFirestore = FirebaseFirestore.
         }
     }
 
-    // Trae todo el catálogo de patologías del sistema
     suspend fun obtenerTodasLasPatologias(): List<Patologia> {
         return try {
             val snapshot = db.collection("patologias").get().await()

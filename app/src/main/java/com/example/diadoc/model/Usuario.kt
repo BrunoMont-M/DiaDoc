@@ -9,4 +9,3 @@ data class Usuario(
     val telUsuario: String = "",
     val codRol: Int = 1                // 1 para Paciente, 2 para Admin
 )
-// Nota: La contraseña NO se guarda en este modelo. Firebase Auth la maneja internamente por seguridad.
