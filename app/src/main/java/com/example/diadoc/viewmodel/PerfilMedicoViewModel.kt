@@ -34,11 +34,28 @@ class PerfilMedicoViewModel(
     private val _usuario = MutableStateFlow<Usuario?>(null)
     val usuario: StateFlow<Usuario?> = _usuario
 
+    private val _perfilExistente = MutableStateFlow<PerfilMedico?>(null)
+    val perfilExistente: StateFlow<PerfilMedico?> = _perfilExistente
+
+    private val _patologiasPrevias = MutableStateFlow<List<String>>(emptyList())
+    val patologiasPrevias: StateFlow<List<String>> = _patologiasPrevias
+
+    private val _restriccionesPrevias = MutableStateFlow<List<String>>(emptyList())
+    val restriccionesPrevias: StateFlow<List<String>> = _restriccionesPrevias
+
     fun cargarDatosIniciales(codUsuario: String) {
         viewModelScope.launch {
             _usuario.value = usuarioRepository.obtenerUsuario(codUsuario)
             _patologias.value = patologiaRepository.obtenerTodasLasPatologias()
             _restricciones.value = restriccionRepository.obtenerTodasLasRestricciones()
+            
+            val perfil = perfilRepository.obtenerPerfilPorUsuario(codUsuario)
+            _perfilExistente.value = perfil
+
+            if (perfil != null) {
+                _patologiasPrevias.value = perfilRepository.obtenerPatologiasDelPerfil(perfil.codPerfil)
+                _restriccionesPrevias.value = perfilRepository.obtenerRestriccionesDelPerfil(perfil.codPerfil)
+            }
         }
     }
 
@@ -46,21 +63,34 @@ class PerfilMedicoViewModel(
         perfil: PerfilMedico,
         fechaNacimiento: String,
         patologiasSeleccionadas: List<String>,
-        restriccionesSeleccionadas: List<String>
+        restriccionesSeleccionadas: List<String>,
+        nuevaPatologiaTexto: String,
+        nuevaRestriccionTexto: String
     ) {
         viewModelScope.launch {
             _saveState.value = Resource.Loading
 
-            // 1. Actualizamos la fecha de nacimiento en la colección de Usuario
             usuarioRepository.actualizarFechaNacimiento(perfil.codUsuario, fechaNacimiento)
 
-            // 2. Guardamos el perfil principal
+            val patologiasFinales = patologiasSeleccionadas.toMutableList()
+            if (nuevaPatologiaTexto.isNotBlank()) {
+                val nuevaPatologia = Patologia(nombreEnfermedad = nuevaPatologiaTexto)
+                val idGenerado = patologiaRepository.guardarPatologia(nuevaPatologia)
+                if (idGenerado != null) patologiasFinales.add(idGenerado)
+            }
+
+            val restriccionesFinales = restriccionesSeleccionadas.toMutableList()
+            if (nuevaRestriccionTexto.isNotBlank()) {
+                val nuevaRestriccion = RestriccionUsuario(nombreRestricc = nuevaRestriccionTexto)
+                val idGenerado = restriccionRepository.guardarRestriccion(nuevaRestriccion)
+                if (idGenerado != null) restriccionesFinales.add(idGenerado)
+            }
+
             val codPerfilGenerado = perfilRepository.guardarPerfilMedico(perfil)
 
             if (codPerfilGenerado != null) {
-                // 3. Guardamos las relaciones
-                perfilRepository.guardarPatologiasDelPerfil(codPerfilGenerado, patologiasSeleccionadas)
-                perfilRepository.guardarRestriccionesDelPerfil(codPerfilGenerado, restriccionesSeleccionadas)
+                perfilRepository.guardarPatologiasDelPerfil(codPerfilGenerado, patologiasFinales)
+                perfilRepository.guardarRestriccionesDelPerfil(codPerfilGenerado, restriccionesFinales)
                 _saveState.value = Resource.Success(true)
             } else {
                 _saveState.value = Resource.Error("Error al guardar el perfil médico.")

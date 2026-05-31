@@ -16,31 +16,45 @@ class PerfilMedicoRepository(private val db: FirebaseFirestore = FirebaseFiresto
 
             val perfilParaGuardar = perfil.copy(codPerfil = document.id)
             document.set(perfilParaGuardar).await()
-            document.id // Retornamos el ID generado para usarlo en las relaciones
+            document.id
         } catch (e: Exception) {
             null
         }
     }
 
-    // Guarda la relación de Patologías sin alterar la data class
+    // Guarda la relación de patologias limpiando las anteriores primero
     suspend fun guardarPatologiasDelPerfil(codPerfil: String, codigosPatologias: List<String>) {
+        val subColeccion = db.collection("perfilesMedicos").document(codPerfil).collection("patologias_asociadas")
         val batch = db.batch()
+
+        val snapshotPrevio = subColeccion.get().await()
+        for (doc in snapshotPrevio.documents) {
+            batch.delete(doc.reference)
+        }
+
         codigosPatologias.forEach { codPatologia ->
-            val docRef = db.collection("perfilesMedicos").document(codPerfil)
-                .collection("patologias_asociadas").document(codPatologia)
+            val docRef = subColeccion.document(codPatologia)
             batch.set(docRef, mapOf("codPatologia" to codPatologia))
         }
+
         batch.commit().await()
     }
 
-    // Guarda la relación de Restricciones sin alterar la data class
+    // Guarda la relación de restricciones limpiando las anteriores primero
     suspend fun guardarRestriccionesDelPerfil(codPerfil: String, codigosRestricciones: List<String>) {
+        val subColeccion = db.collection("perfilesMedicos").document(codPerfil).collection("restricciones_asociadas")
         val batch = db.batch()
+
+        val snapshotPrevio = subColeccion.get().await()
+        for (doc in snapshotPrevio.documents) {
+            batch.delete(doc.reference)
+        }
+
         codigosRestricciones.forEach { codRestriccion ->
-            val docRef = db.collection("perfilesMedicos").document(codPerfil)
-                .collection("restricciones_asociadas").document(codRestriccion)
+            val docRef = subColeccion.document(codRestriccion)
             batch.set(docRef, mapOf("codRestricc" to codRestriccion))
         }
+
         batch.commit().await()
     }
 
@@ -58,6 +72,32 @@ class PerfilMedicoRepository(private val db: FirebaseFirestore = FirebaseFiresto
             }
         } catch (e: Exception) {
             null
+        }
+    }
+
+    suspend fun obtenerPatologiasDelPerfil(codPerfil: String): List<String> {
+        return try {
+            val snapshot = db.collection("perfilesMedicos").document(codPerfil)
+                .collection("patologias_asociadas")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { it.getString("codPatologia") }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun obtenerRestriccionesDelPerfil(codPerfil: String): List<String> {
+        return try {
+            val snapshot = db.collection("perfilesMedicos").document(codPerfil)
+                .collection("restricciones_asociadas")
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { it.getString("codRestricc") }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

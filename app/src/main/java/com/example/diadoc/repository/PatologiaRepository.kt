@@ -6,7 +6,7 @@ import kotlinx.coroutines.tasks.await
 
 class PatologiaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
 
-    suspend fun guardarPatologia(patologia: Patologia): Boolean {
+    suspend fun guardarPatologia(patologia: Patologia): String? {
         return try {
             val document = if (patologia.codPatologia.isEmpty()) {
                 db.collection("patologias").document()
@@ -16,9 +16,9 @@ class PatologiaRepository(private val db: FirebaseFirestore = FirebaseFirestore.
 
             val patologiaGuardar = patologia.copy(codPatologia = document.id)
             document.set(patologiaGuardar).await()
-            true
+            document.id
         } catch (e: Exception) {
-            false
+            null
         }
     }
 

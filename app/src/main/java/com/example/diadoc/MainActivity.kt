@@ -10,15 +10,16 @@ import androidx.compose.ui.Modifier
 import com.example.diadoc.ui.AppNavigation
 import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.AuthViewModel
+import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Instanciamos los ViewModels a nivel global para la navegación
         val authViewModel = AuthViewModel()
         val perfilViewModel = PerfilMedicoViewModel()
+        val dashboardViewModel = DashboardViewModel()
 
         setContent {
             DiaDocTheme {
@@ -28,7 +29,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         authViewModel = authViewModel,
-                        perfilViewModel = perfilViewModel
+                        perfilViewModel = perfilViewModel,
+                        dashboardViewModel = dashboardViewModel
                     )
                 }
             }

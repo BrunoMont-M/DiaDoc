@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.AuthViewModel
+import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 
 class LoginActivity : ComponentActivity() {
@@ -18,6 +19,7 @@ class LoginActivity : ComponentActivity() {
         // 1. Instanciamos los ViewModels
         val authViewModel = AuthViewModel()
         val perfilViewModel = PerfilMedicoViewModel()
+        val dashboardViewModel = DashboardViewModel()
 
         setContent {
             DiaDocTheme {
@@ -27,7 +29,8 @@ class LoginActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         authViewModel = authViewModel,
-                        perfilViewModel = perfilViewModel
+                        perfilViewModel = perfilViewModel,
+                        dashboardViewModel = dashboardViewModel
                     )
                 }
             }

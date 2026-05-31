@@ -6,11 +6,11 @@ plugins {
 
 android {
     namespace = "com.example.diadoc"
-    compileSdk = 34 // Mantenemos el estándar estable
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.diadoc"
-        minSdk = 26 // Tu versión correcta
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -51,25 +51,25 @@ android {
 }
 
 dependencies {
-    // 1. LAS ANCLAS CLAVE (Forzamos estas versiones para evitar el error de SDK 35/36)
+    // 1. Forzamos estas versiones para evitar el error de SDK 35/36
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // 2. JETPACK COMPOSE (El motor visual)
+    // 2. Jetpack Compose
     implementation(platform("androidx.compose:compose-bom:2024.04.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    // 3. FIREBASE (La base de datos y autenticación)
+    // 3. BD y autenticación)
     implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3") // Vital para los await() en los repositorios
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // 4. TESTING Y HERRAMIENTAS DE DEBUG
+    // 4. Testing y debug
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
@@ -81,9 +81,15 @@ dependencies {
     // Librería de Material Design
     implementation("com.google.android.material:material:1.11.0")
 
-    // Librería de Iconos de Material Design
+    // Librería de Iconos de Material Design extendidos
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navegación entre pantallas
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // IA, Gráficos, Preferencias, Imágenes
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0") // Manejo de ViewModels en Navigation
+    implementation("com.google.ai.client.generativeai:generativeai:0.6.0") // Gemini IA
+    implementation("androidx.datastore:datastore-preferences:1.1.1") // Para guardar tema claro/oscuro
+    implementation("io.coil-kt:coil-compose:2.6.0") // Para carga de imágenes (ej. recetas)
 }

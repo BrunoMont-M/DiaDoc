@@ -2,7 +2,7 @@ package com.example.diadoc.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Colores Principales (Identidad DiaDoc - Tonos Azules/Médicos)
+// Colores Principales
 val PrimaryBlue = Color(0xFF00668B)
 val SecondaryTeal = Color(0xFF006B5F)
 val AccentColor = Color(0xFF00A2D3)
