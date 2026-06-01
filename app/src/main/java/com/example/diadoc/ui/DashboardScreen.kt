@@ -27,7 +27,8 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     uid: String,
     onNavigateToSettings: () -> Unit,
-    onNavigateToSOS: () -> Unit
+    onNavigateToSOS: () -> Unit,
+    onNavigateToGenerador: () -> Unit
 ) {
     val usuario by viewModel.usuario.collectAsState()
 
@@ -39,9 +40,8 @@ fun DashboardScreen(
     val items = listOf("Inicio", "Nutrición", "Actividad", "Progreso")
     val icons = listOf(Icons.Default.Home, Icons.Default.Restaurant, Icons.Default.DirectionsRun, Icons.Default.TrendingUp)
 
-    // Estados para expandir/contraer las tarjetas
     var glucosaExpanded by remember { mutableStateOf(false) }
-    var cumplimientoExpanded by remember { mutableStateOf(true) } // Abierta por defecto
+    var cumplimientoExpanded by remember { mutableStateOf(true) }
     var agendaExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -208,11 +208,21 @@ fun DashboardScreen(
                             Text("17:30 - Entrenamiento", fontWeight = FontWeight.SemiBold, color = Color.Gray)
                         }
                         Text("Aún no registraste tu rutina de hoy.", style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.padding(start = 24.dp, top = 2.dp))
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = onNavigateToGenerador,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Generar Plan con IA")
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(80.dp)) // Espacio para que el FAB no tape la última tarjeta
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }

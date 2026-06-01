@@ -96,6 +96,9 @@ fun AppNavigation(
                 },
                 onNavigateToSOS = {
                     // TODO: Módulo SOS
+                },
+                onNavigateToGenerador = {
+                    navController.navigate("generador_ia/$uid")
                 }
             )
         }
@@ -123,6 +126,18 @@ fun AppNavigation(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToContactos = { navController.navigate("contactos/$uid") },
                 onNavigateToPerfil = { navController.navigate("perfil_medico/$uid") }
+            )
+        }
+
+        // RUTA 7: Generador de IA
+        composable("generador_ia/{uid}") { backStackEntry ->
+            val uid = backStackEntry.arguments?.getString("uid") ?: ""
+            val generadorViewModel: com.example.diadoc.viewmodel.GeneradorPlanViewModel = viewModel()
+
+            GenerarPlanScreen(
+                viewModel = generadorViewModel,
+                uid = uid,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

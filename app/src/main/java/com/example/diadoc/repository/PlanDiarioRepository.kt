@@ -6,7 +6,7 @@ import kotlinx.coroutines.tasks.await
 
 class PlanDiarioRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
 
-    suspend fun guardarPlan(plan: PlanDiario): Boolean {
+    suspend fun guardarPlan(plan: PlanDiario): String? {
         return try {
             val document = if (plan.codPlan.isEmpty()) {
                 db.collection("planesDiarios").document()
@@ -16,16 +16,16 @@ class PlanDiarioRepository(private val db: FirebaseFirestore = FirebaseFirestore
 
             val planGuardar = plan.copy(codPlan = document.id)
             document.set(planGuardar).await()
-            true
+            document.id
         } catch (e: Exception) {
-            false
+            null
         }
     }
 
-    suspend fun obtenerPlanesPorUsuario(idUsuario: String): List<PlanDiario> {
+    suspend fun obtenerPlanesPorUsuario(codUsuario: String): List<PlanDiario> {
         return try {
             val snapshot = db.collection("planesDiarios")
-                .whereEqualTo("idUsuario", idUsuario)
+                .whereEqualTo("codUsuario", codUsuario)
                 .get()
                 .await()
 

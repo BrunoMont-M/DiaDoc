@@ -2,7 +2,7 @@ package com.example.diadoc.model
 
 data class PlanDiario(
     val codPlan: String = "",
-    val codUsuario: String = "",          // Agregado para vincularlo al paciente
+    val codUsuario: String = "",
     val fechaInicio: String = "",
     val fechaFin: String = "",
     val objetivoPlan: String = "",

@@ -1,8 +1,17 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services") // Plugin fundamental para que Firebase funcione
+    id("com.google.gms.google-services")
 }
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") ?: ""
 
 android {
     namespace = "com.example.diadoc"
@@ -19,6 +28,8 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
     }
 
     buildTypes {
@@ -39,6 +50,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
@@ -51,25 +63,24 @@ android {
 }
 
 dependencies {
-    // 1. Forzamos estas versiones para evitar el error de SDK 35/36
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // 2. Jetpack Compose
+    // Jetpack Compose
     implementation(platform("androidx.compose:compose-bom:2024.04.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    // 3. BD y autenticación)
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // 4. Testing y debug
+    // Testing y debug
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
@@ -88,8 +99,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
     // IA, Gráficos, Preferencias, Imágenes
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0") // Manejo de ViewModels en Navigation
-    implementation("com.google.ai.client.generativeai:generativeai:0.6.0") // Gemini IA
-    implementation("androidx.datastore:datastore-preferences:1.1.1") // Para guardar tema claro/oscuro
-    implementation("io.coil-kt:coil-compose:2.6.0") // Para carga de imágenes (ej. recetas)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("com.google.ai.client.generativeai:generativeai:0.6.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }
