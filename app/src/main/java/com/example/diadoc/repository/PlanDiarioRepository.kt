@@ -34,4 +34,18 @@ class PlanDiarioRepository(private val db: FirebaseFirestore = FirebaseFirestore
             emptyList()
         }
     }
+
+    suspend fun obtenerPlanDeHoy(codUsuario: String, fechaHoy: String): PlanDiario? {
+        return try {
+            val snapshot = db.collection("planesDiarios")
+                .whereEqualTo("codUsuario", codUsuario)
+                .whereEqualTo("fechaInicio", fechaHoy)
+                .get()
+                .await()
+
+            if (!snapshot.isEmpty) snapshot.documents[0].toObject(PlanDiario::class.java) else null
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

@@ -32,7 +32,6 @@ class GeneradorPlanViewModel(
     private val _generacionState = MutableStateFlow<Resource<Boolean>?>(null)
     val generacionState: StateFlow<Resource<Boolean>?> = _generacionState
 
-    // Inicializamos el modelo de Gemini usando la versión Flash (gratuita)
     private val generativeModel = GenerativeModel(
         modelName = "gemini-2.5-flash",
         apiKey = BuildConfig.GEMINI_API_KEY
@@ -42,52 +41,61 @@ class GeneradorPlanViewModel(
         viewModelScope.launch {
             _generacionState.value = Resource.Loading
             try {
-                // 1. Obtener perfil, patologías y restricciones del usuario
                 val perfil = perfilRepository.obtenerPerfilPorUsuario(codUsuario)
                 if (perfil == null) {
                     _generacionState.value = Resource.Error("Perfil médico no encontrado.")
                     return@launch
                 }
 
-                val patologias = perfilRepository.obtenerPatologiasDelPerfil(perfil.codPerfil).joinToString(", ")
-                val restricciones = perfilRepository.obtenerRestriccionesDelPerfil(perfil.codPerfil).joinToString(", ")
+                val patologias = perfilRepository.obtenerPatologiasDelPerfil(perfil.codPerfil).joinToString(", ").ifBlank { "Ninguna reportada" }
+                val restricciones = perfilRepository.obtenerRestriccionesDelPerfil(perfil.codPerfil).joinToString(", ").ifBlank { "Ninguna reportada" }
 
-                // 2. Construir el Prompt Estructurado para la IA
+                // Prompt para la generación de recetas
                 val prompt = """
-                    Actúa como un nutricionista clínico experto. Debes generar un plan de alimentación diario para un paciente con las siguientes características:
-                    - Peso: ${perfil.pesoActual} kg
+                    Actúa como un Nutricionista Clínico de Alta Especialidad y Chef Profesional. Tu objetivo es diseñar un plan de alimentación diario ESTRICTAMENTE PERSONALIZADO y SEGURO para un paciente con el siguiente perfil:
+                    - Peso actual: ${perfil.pesoActual} kg
                     - Altura: ${perfil.alturaPerfil} cm
-                    - Patologías confirmadas: $patologias
-                    - Restricciones alimentarias: $restricciones
+                    - Patologías diagnosticadas: $patologias
+                    - Restricciones/Alergias alimentarias: $restricciones
                     
-                    Prioriza el uso de ingredientes nobles y de bajo impacto glucémico como avena, semillas de chía y abundantes vegetales frescos en las preparaciones. Si los requerimientos clínicos y de calorías lo permiten, puedes sugerir adaptaciones saludables de platillos como la humita o tortitas integrales para mantener la variedad y adherencia al plan.
+                    DIRECTRICES MÉDICAS CRÍTICAS (DE CUMPLIMIENTO OBLIGATORIO):
+                    1. Es VITAL para la salud del paciente que el menú respete rigurosamente las patologías y restricciones indicadas. Excluye por completo cualquier ingrediente que esté contraindicado para sus patologías o genere reacciones alérgicas según su perfil.
+                    2. Aplica lógica clínica: Si tiene hipertensión, diseña platos bajos en sodio; si es celíaco, excluye totalmente el gluten; si es diabético, prioriza ingredientes de bajo índice glucémico; si no tiene restricciones, prioriza una dieta equilibrada y saludable.
+                    3. Calcula un objetivo calórico coherente (mantenimiento, déficit o superávit moderado) basado en su peso y altura.
+
+                    DIRECTRICES CULINARIAS Y DE EXPERIENCIA DE USUARIO:
+                    Diseña un menú de autor, que sea atractivo, variado y delicioso. Evita nombres genéricos. Cada comida debe sentirse como una receta premium. Asigna un nombre atractivo al plato ("nombrePlato"), una descripción ("descripcionPlato") que explique de forma empática cómo este plato beneficia su condición clínica específica, y un arreglo de instrucciones paso a paso claras ("preparacion").
                     
-                    Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido con la siguiente estructura, sin texto adicional ni formato Markdown:
+                    Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido con la siguiente estructura exacta, sin código Markdown ni texto adicional al principio o al final:
                     {
-                      "objetivoPlan": "Mantenimiento",
+                      "objetivoPlan": "Mantenimiento / Déficit / Superávit",
                       "kcalDieta": 2000,
-                      "nombreDieta": "Plan Saludable Día 1",
+                      "nombreDieta": "Menú Clínico Personalizado",
                       "comidas": [
                         {
                           "tipoComida": "Desayuno",
+                          "nombrePlato": "Nombre Gourmet y Atractivo",
+                          "descripcionPlato": "Breve descripción destacando el impacto positivo del plato para sus patologías y nutrición.",
+                          "preparacion": [
+                            "Paso 1 detallado.",
+                            "Paso 2 detallado."
+                          ],
                           "alimentos": [
-                            { "nombreAlimento": "Avena cocida", "kcalBase": 150.0, "proteinasBase": 5.0, "carbohidratosBase": 27.0, "grasasBase": 3.0, "indiceGlucemico": 55 }
+                            { "nombreAlimento": "Nombre del ingrediente", "kcalBase": 100.0, "proteinasBase": 5.0, "carbohidratosBase": 10.0, "grasasBase": 2.0, "indiceGlucemico": 30 }
                           ]
                         }
                       ]
                     }
                 """.trimIndent()
 
-                // 3. Llamar a Gemini limpiando cualquier formato residual usando Unicode para evitar cortes de interfaz
                 val response = generativeModel.generateContent(prompt)
                 val jsonText = response.text?.replace("\u0060\u0060\u0060json", "")?.replace("\u0060\u0060\u0060", "")?.trim() ?: ""
 
-                // 4. Parsear el JSON y guardar en la Base de Datos
                 procesarYGuardarJSON(jsonText, codUsuario)
 
             } catch (e: Exception) {
                 Log.e("IA_ERROR", "Error generando dieta: ${e.message}")
-                _generacionState.value = Resource.Error("Error al conectar con el motor IA: ${e.localizedMessage}")
+                _generacionState.value = Resource.Error("Error al conectar con el motor IA.")
             }
         }
     }
@@ -95,9 +103,8 @@ class GeneradorPlanViewModel(
     private suspend fun procesarYGuardarJSON(jsonString: String, codUsuario: String) {
         try {
             val jsonObject = JSONObject(jsonString)
-
-            // A. Guardar Plan Diario
             val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
             val plan = PlanDiario(
                 codUsuario = codUsuario,
                 fechaInicio = fechaHoy,
@@ -106,30 +113,37 @@ class GeneradorPlanViewModel(
                 porcentCumplimiento = 0.0,
                 versionIA = "gemini-2.5-flash"
             )
-            val codPlan = planRepository.guardarPlan(plan) ?: throw Exception("Fallo al guardar Plan")
+            val codPlanGenerado = planRepository.guardarPlan(plan) ?: throw Exception("Fallo al guardar")
 
-            // B. Guardar Dieta Base
             val dieta = Dieta(
+                codPlan = codPlanGenerado,
                 kcalDieta = jsonObject.getDouble("kcalDieta"),
                 nombreDieta = jsonObject.getString("nombreDieta")
             )
 
             val comidasArray = jsonObject.getJSONArray("comidas")
-            val detallesAInsertar = mutableListOf<DetalleDieta>()
+            val menuCompleto = mutableMapOf<DetalleDieta, List<Alimento>>()
 
-            // C. Procesar cada comida
             for (i in 0 until comidasArray.length()) {
                 val comidaObj = comidasArray.getJSONObject(i)
-                val tipoComida = comidaObj.getString("tipoComida")
-                val alimentosArray = comidaObj.getJSONArray("alimentos")
+
+                val preparacionArray = comidaObj.getJSONArray("preparacion")
+                val preparacionList = mutableListOf<String>()
+                for (k in 0 until preparacionArray.length()) {
+                    preparacionList.add(preparacionArray.getString(k))
+                }
 
                 val detalle = DetalleDieta(
-                    cantDetDieta = alimentosArray.length(),
-                    tipoComida = tipoComida
+                    cantDetDieta = comidaObj.getJSONArray("alimentos").length(),
+                    tipoComida = comidaObj.getString("tipoComida"),
+                    nombrePlato = comidaObj.optString("nombrePlato", "Plato Saludable"),
+                    descripcionPlato = comidaObj.optString("descripcionPlato", "Preparación nutritiva sugerida por IA."),
+                    preparacion = preparacionList
                 )
-                detallesAInsertar.add(detalle)
 
-                // D. Guardar los alimentos sugeridos
+                val alimentosArray = comidaObj.getJSONArray("alimentos")
+                val listaAlimentos = mutableListOf<Alimento>()
+
                 for (j in 0 until alimentosArray.length()) {
                     val alimObj = alimentosArray.getJSONObject(j)
                     val alimento = Alimento(
@@ -140,16 +154,18 @@ class GeneradorPlanViewModel(
                         grasasBase = alimObj.getDouble("grasasBase"),
                         indiceGlucemico = alimObj.getInt("indiceGlucemico")
                     )
+                    listaAlimentos.add(alimento)
                     alimentoRepository.guardarAlimento(alimento)
                 }
+                menuCompleto[detalle] = listaAlimentos
             }
 
-            dietaRepository.guardarDietaCompleta(dieta, detallesAInsertar)
+            dietaRepository.guardarDietaCompleta(dieta, menuCompleto)
             _generacionState.value = Resource.Success(true)
 
         } catch (e: Exception) {
-            Log.e("JSON_PARSE_ERROR", "Error procesando JSON de IA: ${e.message}")
-            _generacionState.value = Resource.Error("La respuesta de la IA no pudo ser procesada.")
+            Log.e("JSON_PARSE_ERROR", "Error: ${e.message}")
+            _generacionState.value = Resource.Error("Error al procesar la receta.")
         }
     }
 

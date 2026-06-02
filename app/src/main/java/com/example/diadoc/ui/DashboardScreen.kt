@@ -28,7 +28,8 @@ fun DashboardScreen(
     uid: String,
     onNavigateToSettings: () -> Unit,
     onNavigateToSOS: () -> Unit,
-    onNavigateToGenerador: () -> Unit
+    onNavigateToGenerador: () -> Unit,
+    onNavigateToNutricion: () -> Unit
 ) {
     val usuario by viewModel.usuario.collectAsState()
 
@@ -77,7 +78,12 @@ fun DashboardScreen(
                         icon = { Icon(icons[index], contentDescription = item) },
                         label = { Text(item) },
                         selected = selectedItem == index,
-                        onClick = { selectedItem = index }
+                        onClick = {
+                            selectedItem = index
+                            when (index) {
+                                1 -> onNavigateToNutricion()
+                            }
+                        }
                     )
                 }
             }
@@ -104,7 +110,7 @@ fun DashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // TARJETA 1: GLUCOSA (Interactiva)
+            // TARJETA 1: GLUCOSA
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,7 +143,7 @@ fun DashboardScreen(
                 }
             }
 
-            // TARJETA 2: CUMPLIMIENTO (Interactiva)
+            // TARJETA 2: CUMPLIMIENTO
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -169,7 +175,7 @@ fun DashboardScreen(
                 }
             }
 
-            // TARJETA 3: PRÓXIMA ACTIVIDAD (Agenda - Interactiva)
+            // TARJETA 3: Agenda
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()

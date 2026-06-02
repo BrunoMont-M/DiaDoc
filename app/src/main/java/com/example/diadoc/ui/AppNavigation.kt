@@ -15,6 +15,8 @@ import com.example.diadoc.viewmodel.AuthViewModel
 import com.example.diadoc.viewmodel.ContactosViewModel
 import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
+import com.example.diadoc.viewmodel.GeneradorPlanViewModel
+import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -91,15 +93,10 @@ fun AppNavigation(
             DashboardScreen(
                 viewModel = dashboardViewModel,
                 uid = uid,
-                onNavigateToSettings = {
-                    navController.navigate("ajustes/$uid")
-                },
-                onNavigateToSOS = {
-                    // TODO: Módulo SOS
-                },
-                onNavigateToGenerador = {
-                    navController.navigate("generador_ia/$uid")
-                }
+                onNavigateToSettings = { navController.navigate("ajustes/$uid") },
+                onNavigateToSOS = { /* TODO: Módulo SOS */ },
+                onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
+                onNavigateToNutricion = { navController.navigate("plan_nutricional/$uid") }
             )
         }
 
@@ -111,9 +108,7 @@ fun AppNavigation(
             ContactosScreen(
                 viewModel = contactosViewModel,
                 uid = uid,
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -132,10 +127,22 @@ fun AppNavigation(
         // RUTA 7: Generador de IA
         composable("generador_ia/{uid}") { backStackEntry ->
             val uid = backStackEntry.arguments?.getString("uid") ?: ""
-            val generadorViewModel: com.example.diadoc.viewmodel.GeneradorPlanViewModel = viewModel()
+            val generadorViewModel: GeneradorPlanViewModel = viewModel()
 
             GenerarPlanScreen(
                 viewModel = generadorViewModel,
+                uid = uid,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // RUTA 8: Plan Nutricional de Hoy
+        composable("plan_nutricional/{uid}") { backStackEntry ->
+            val uid = backStackEntry.arguments?.getString("uid") ?: ""
+            val planViewModel: PlanNutricionalViewModel = viewModel()
+
+            PlanNutricionalScreen(
+                viewModel = planViewModel,
                 uid = uid,
                 onNavigateBack = { navController.popBackStack() }
             )
