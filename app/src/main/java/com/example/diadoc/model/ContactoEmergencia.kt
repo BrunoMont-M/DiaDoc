@@ -4,5 +4,6 @@ data class ContactoEmergencia(
     val codContacto: String = "",
     val codUsuario: String = "",
     val nombreContacto: String = "",
+    val vinculo: String = "", // Agregar en el DC
     val telefono: String = ""
 )

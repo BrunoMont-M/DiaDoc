@@ -7,12 +7,15 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,11 +23,25 @@ import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.AuthViewModel
 
 @Composable
-fun RegisterScreen(viewModel: AuthViewModel, onBackToLogin: () -> Unit) {
+fun RegisterScreen(
+    viewModel: AuthViewModel,
+    onBackToLogin: () -> Unit,
+    onNavigateToPerfil: (String) -> Unit
+) {
     var nombre by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
     val state by viewModel.authState.collectAsState()
+
+    LaunchedEffect(state) {
+        if (state is Resource.Success<*>) {
+            val uid = (state as Resource.Success<String>).data
+            viewModel.resetState()
+            onNavigateToPerfil(uid ?: "")
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -93,9 +110,15 @@ fun RegisterScreen(viewModel: AuthViewModel, onBackToLogin: () -> Unit) {
             label = { Text("Contraseña") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Contraseña") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = "Ver contraseña")
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -127,7 +150,7 @@ fun RegisterScreen(viewModel: AuthViewModel, onBackToLogin: () -> Unit) {
 
         if (state is Resource.Error) {
             Text(
-                text = (state as Resource.Error).message,
+                text = (state as Resource.Error).message ?: "Error",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 16.dp)

@@ -64,18 +64,12 @@ class AuthViewModel(
             _resetPasswordState.value = Resource.Error("Por favor, ingresá tu email para recuperar la contraseña.")
             return
         }
-
         viewModelScope.launch {
             _resetPasswordState.value = Resource.Loading
             _resetPasswordState.value = authRepository.recuperarPassword(email)
         }
     }
 
-    fun resetState() {
-        _authState.value = null
-    }
-
-    fun clearResetPasswordState() {
-        _resetPasswordState.value = null
-    }
+    fun resetState() { _authState.value = null }
+    fun clearResetPasswordState() { _resetPasswordState.value = null }
 }

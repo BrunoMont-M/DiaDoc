@@ -12,7 +12,7 @@ class AuthRepository(
             val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
             Resource.Success(result.user?.uid ?: "")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Error al iniciar sesión")
+            Resource.Error(traducirErrorFirebase(e))
         }
     }
 
@@ -21,7 +21,7 @@ class AuthRepository(
             val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             Resource.Success(result.user?.uid ?: "")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Error al registrar usuario")
+            Resource.Error(traducirErrorFirebase(e))
         }
     }
 
@@ -30,7 +30,24 @@ class AuthRepository(
             firebaseAuth.sendPasswordResetEmail(email).await()
             Resource.Success("Correo de recuperación enviado con éxito.")
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "Error al enviar el correo de recuperación.")
+            Resource.Error(traducirErrorFirebase(e))
+        }
+    }
+
+    private fun traducirErrorFirebase(e: Exception): String {
+        val mensaje = e.message ?: return "Ocurrió un error desconocido."
+        return when {
+            mensaje.contains("incorrect, malformed or has expired") || mensaje.contains("invalid-credential") ->
+                "El correo o la contraseña son incorrectos."
+            mensaje.contains("email address is already in use") ->
+                "Este correo ya está registrado. Iniciá sesión."
+            mensaje.contains("badly formatted") ->
+                "El formato del correo no es válido."
+            mensaje.contains("network error") ->
+                "Error de red. Verificá tu conexión a internet."
+            mensaje.contains("password should be at least 6 characters") ->
+                "La contraseña debe tener al menos 6 caracteres."
+            else -> "Error de autenticación: Verifica tus datos."
         }
     }
 }

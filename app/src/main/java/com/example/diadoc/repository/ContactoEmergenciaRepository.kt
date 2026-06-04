@@ -22,17 +22,25 @@ class ContactoEmergenciaRepository(private val db: FirebaseFirestore = FirebaseF
         }
     }
 
-    // Trae únicamente los contactos del paciente que está logueado
-    suspend fun obtenerContactosPorUsuario(idUsuario: String): List<ContactoEmergencia> {
+    suspend fun obtenerContactosPorUsuario(codUsuario: String): List<ContactoEmergencia> {
         return try {
             val snapshot = db.collection("contactosEmergencia")
-                .whereEqualTo("idUsuario", idUsuario)
+                .whereEqualTo("codUsuario", codUsuario) // Corregido: antes decía "idUsuario"
                 .get()
                 .await()
 
             snapshot.toObjects(ContactoEmergencia::class.java)
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun eliminarContacto(codContacto: String): Boolean {
+        return try {
+            db.collection("contactosEmergencia").document(codContacto).delete().await()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }

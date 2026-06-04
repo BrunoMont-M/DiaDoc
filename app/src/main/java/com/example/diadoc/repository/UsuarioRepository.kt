@@ -6,11 +6,10 @@ import kotlinx.coroutines.tasks.await
 
 class UsuarioRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
 
-    // Esta función guarda el objeto Usuario completo en la colección "usuarios" de Firestore
     suspend fun guardarUsuario(usuario: Usuario): Boolean {
         return try {
             db.collection("usuarios")
-                .document(usuario.codUsuario) // Usamos el ID que nos dio Auth
+                .document(usuario.codUsuario)
                 .set(usuario)
                 .await()
             true
@@ -19,13 +18,21 @@ class UsuarioRepository(private val db: FirebaseFirestore = FirebaseFirestore.ge
         }
     }
 
-    // Función para traer los datos de un usuario por su ID
     suspend fun obtenerUsuario(idUsuario: String): Usuario? {
         return try {
             val snapshot = db.collection("usuarios").document(idUsuario).get().await()
             snapshot.toObject(Usuario::class.java)
         } catch (e: Exception) {
             null
+        }
+    }
+
+    suspend fun actualizarFechaNacimiento(codUsuario: String, fecha: String): Boolean {
+        return try {
+            db.collection("usuarios").document(codUsuario).update("fechaNacimiento", fecha).await()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }
