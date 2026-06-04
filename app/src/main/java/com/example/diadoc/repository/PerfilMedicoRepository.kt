@@ -22,7 +22,6 @@ class PerfilMedicoRepository(private val db: FirebaseFirestore = FirebaseFiresto
         }
     }
 
-    // Guarda la relación de patologias limpiando las anteriores primero
     suspend fun guardarPatologiasDelPerfil(codPerfil: String, codigosPatologias: List<String>) {
         val subColeccion = db.collection("perfilesMedicos").document(codPerfil).collection("patologias_asociadas")
         val batch = db.batch()
@@ -40,7 +39,6 @@ class PerfilMedicoRepository(private val db: FirebaseFirestore = FirebaseFiresto
         batch.commit().await()
     }
 
-    // Guarda la relación de restricciones limpiando las anteriores primero
     suspend fun guardarRestriccionesDelPerfil(codPerfil: String, codigosRestricciones: List<String>) {
         val subColeccion = db.collection("perfilesMedicos").document(codPerfil).collection("restricciones_asociadas")
         val batch = db.batch()
@@ -82,7 +80,23 @@ class PerfilMedicoRepository(private val db: FirebaseFirestore = FirebaseFiresto
                 .get()
                 .await()
 
-            snapshot.documents.mapNotNull { it.getString("codPatologia") }
+            val nombresPatologias = mutableListOf<String>()
+
+            for (doc in snapshot.documents) {
+                val codPatologia = doc.getString("codPatologia")
+                if (codPatologia != null) {
+                    val patologiaDoc = db.collection("patologias").document(codPatologia).get().await()
+
+                    val nombreEnfermedad = patologiaDoc.getString("nombreEnfermedad")
+
+                    if (nombreEnfermedad != null) {
+                        nombresPatologias.add(nombreEnfermedad)
+                    } else {
+                        nombresPatologias.add(codPatologia)
+                    }
+                }
+            }
+            nombresPatologias
         } catch (e: Exception) {
             emptyList()
         }
@@ -95,7 +109,22 @@ class PerfilMedicoRepository(private val db: FirebaseFirestore = FirebaseFiresto
                 .get()
                 .await()
 
-            snapshot.documents.mapNotNull { it.getString("codRestricc") }
+            val nombresRestricciones = mutableListOf<String>()
+
+            for (doc in snapshot.documents) {
+                val codRestricc = doc.getString("codRestricc")
+                if (codRestricc != null) {
+                    val restriccionDoc = db.collection("restricciones").document(codRestricc).get().await()
+                    val nombreRestriccion = restriccionDoc.getString("nombreRestriccion")
+
+                    if (nombreRestriccion != null) {
+                        nombresRestricciones.add(nombreRestriccion)
+                    } else {
+                        nombresRestricciones.add(codRestricc)
+                    }
+                }
+            }
+            nombresRestricciones
         } catch (e: Exception) {
             emptyList()
         }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
@@ -43,7 +44,8 @@ fun DashboardScreen(
     uid: String,
     onNavigateToSettings: () -> Unit,
     onNavigateToSOS: () -> Unit,
-    onNavigateToGenerador: () -> Unit
+    onNavigateToGenerador: () -> Unit,
+    onNavigateToBitacora: () -> Unit
 ) {
     val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
@@ -173,13 +175,6 @@ fun DashboardScreen(
                     )
                     FilterChip(
                         selected = false,
-                        onClick = { /* Módulo de US11 */ },
-                        label = { Text("Registrar Métrica") },
-                        leadingIcon = { Icon(Icons.Default.Addchart, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    FilterChip(
-                        selected = false,
                         onClick = { /* TODO: Check-in Actividad */ },
                         label = { Text("Entrené Hoy") },
                         leadingIcon = { Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFF66BB6A)) },
@@ -224,8 +219,18 @@ fun DashboardScreen(
                         patologias.contains("sarcopenia") -> Icons.Default.MonitorWeight
                         else -> Icons.Default.LocalFireDepartment
                     }
+
+                    val valorActual = metricaDinamica[1].toFloatOrNull() ?: 0f
                     val colorTarjeta = when {
-                        patologias.contains("diabet") -> Color(0xFFE53935)
+                        patologias.contains("diabet") -> {
+                            when {
+                                valorActual == 0f -> Color(0xFFE53935)
+                                valorActual < 70f -> Color(0xFFD32F2F)
+                                valorActual <= 100f -> Color(0xFF4CAF50)
+                                valorActual <= 140f -> Color(0xFFFF9800)
+                                else -> Color(0xFFC62828) //
+                            }
+                        }
                         patologias.contains("sarcopenia") -> Color(0xFF8E24AA)
                         else -> Color(0xFFFF9800)
                     }
@@ -236,7 +241,7 @@ fun DashboardScreen(
                             unidad = metricaDinamica[2], subtexto = metricaDinamica[3],
                             icono = iconoTarjeta, colorPrimario = colorTarjeta,
                             historial = historialMetricas,
-                            onClick = { showComparativaModal = true } // FASE 3: Enlazamos el clic
+                            onClick = { showComparativaModal = true }
                         )
                     }
                 }
@@ -268,6 +273,34 @@ fun DashboardScreen(
                                 texto = "$vasosAgua/8 Vasos", onClick = { infoPopupType = "AGUA" }
                             )
                         }
+                    }
+                }
+
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onNavigateToBitacora() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.MedicalInformation, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Bitácora de Salud", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Text("Registra métricas y check-in", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f))
+                        }
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Ir a Bitácora", tint = MaterialTheme.colorScheme.tertiary)
                     }
                 }
 
@@ -413,7 +446,7 @@ fun TarjetaClinica(
             Spacer(modifier = Modifier.height(8.dp))
             Text(subtexto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            if (historial.isNotEmpty()) {
+            if (historial.size > 1) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val chartEntryModel = entryModelOf(*historial.toTypedArray())
                 Chart(
@@ -428,6 +461,9 @@ fun TarjetaClinica(
                     model = chartEntryModel,
                     modifier = Modifier.height(60.dp).fillMaxWidth()
                 )
+            } else if (historial.size == 1) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Registra un valor más para ver tu curva de tendencia.", color = Color.Gray, fontSize = 12.sp, fontStyle = FontStyle.Italic)
             }
         }
     }

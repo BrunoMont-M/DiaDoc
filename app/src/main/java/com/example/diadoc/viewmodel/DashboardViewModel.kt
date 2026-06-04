@@ -7,6 +7,7 @@ import com.example.diadoc.BuildConfig
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.PlanDiario
 import com.example.diadoc.model.Usuario
+import com.example.diadoc.repository.ControlDiarioRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
@@ -28,7 +29,8 @@ class DashboardViewModel(
     private val usuarioRepository: UsuarioRepository = UsuarioRepository(),
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
-    private val dietaRepository: DietaRepository = DietaRepository()
+    private val dietaRepository: DietaRepository = DietaRepository(),
+    private val controlRepository: ControlDiarioRepository = ControlDiarioRepository()
 ) : ViewModel() {
 
     private val _usuario = MutableStateFlow<Usuario?>(null)
@@ -95,19 +97,7 @@ class DashboardViewModel(
                 _patologias.value = patologiasLocales
             }
 
-            if (patologiasLocales.contains("diabet")) {
-                _metricaDinamica.value = listOf("Última Glucosa", "105", "mg/dL", "Rango Saludable. Actualizado hoy.")
-                _historialMetricas.value = listOf(118f, 110f, 102f, 98f, 105f)
-                _comparativaSemanal.value = "Esta semana tu glucosa promedio en ayunas fue de 106 mg/dL. Esto representa una mejora clínica del 4.5% respecto a tu promedio de la semana pasada (111 mg/dL)."
-            } else if (patologiasLocales.contains("sarcopenia") || patologiasLocales.contains("desnutrición")) {
-                _metricaDinamica.value = listOf("Objetivo Proteico", "65", "gramos", "Te faltan 25g para tu meta de retención.")
-                _historialMetricas.value = listOf(50f, 55f, 60f, 62f, 65f)
-                _comparativaSemanal.value = "Tu retención de masa muscular se mantiene estable. Promediaste 60g de proteína diaria, cumpliendo con el umbral anabólico un 12% más que la semana anterior."
-            } else {
-                _metricaDinamica.value = listOf("Calorías Activas", "1240", "kcal", "¡Excelente ritmo! En déficit calórico.")
-                _historialMetricas.value = listOf(1100f, 1150f, 1200f, 1180f, 1240f)
-                _comparativaSemanal.value = "Esta semana promediaste 1184 kcal quemadas, manteniendo un déficit calórico constante. ¡Incrementaste un 5% tu tasa de actividad basal!"
-            }
+            cargarHistorialReal(uid, patologiasLocales)
 
             val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
             val plan = planRepository.obtenerPlanDeHoy(uid, fechaHoy)
@@ -135,6 +125,47 @@ class DashboardViewModel(
 
         } catch (e: Exception) {
             Log.e("Dashboard", "Error cargando dashboard: ${e.message}")
+        }
+    }
+
+    private suspend fun cargarHistorialReal(uid: String, patologiasLocales: String) {
+        val controles = controlRepository.obtenerControlesPorUsuario(uid)
+        val format = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+
+        val controlesOrdenados = controles.mapNotNull {
+            try { Pair(format.parse(it.fechaHoraControl), it) } catch(e:Exception) { null }
+        }.sortedByDescending { it.first }.map { it.second }
+
+        val ultimosValores = mutableListOf<Float>()
+        var ultimoValorRegistrado = "0"
+
+        for (c in controlesOrdenados) {
+            if (ultimosValores.size >= 5) break
+            val detalles = controlRepository.obtenerDetallesDeControl(c.codControl)
+            val biometria = detalles.find { it.tipoMedicacion.startsWith("Biometría") }
+            if (biometria != null) {
+                ultimosValores.add(biometria.valorNumerico.toFloat())
+                if (ultimosValores.size == 1) {
+                    ultimoValorRegistrado = biometria.valorNumerico.toString()
+                }
+            }
+        }
+
+        val historialParaGrafico = if (ultimosValores.isEmpty()) emptyList() else ultimosValores.reversed()
+        _historialMetricas.value = historialParaGrafico
+
+        if (patologiasLocales.contains("diabet")) {
+            val valorFinal = if (ultimosValores.isEmpty()) "S/D" else ultimoValorRegistrado
+            _metricaDinamica.value = listOf("Última Glucosa", valorFinal, "mg/dL", "Actualizado con tu último check-in.")
+            _comparativaSemanal.value = "Análisis Clínico en proceso. Registra más métricas esta semana para calcular tu tendencia de glucosa."
+        } else if (patologiasLocales.contains("sarcopenia") || patologiasLocales.contains("desnutrición")) {
+            val valorFinal = if (ultimosValores.isEmpty()) "S/D" else ultimoValorRegistrado
+            _metricaDinamica.value = listOf("Peso Registrado", valorFinal, "kg", "Mantén tu seguimiento de masa muscular.")
+            _comparativaSemanal.value = "Análisis Clínico en proceso. Registra más métricas esta semana para evaluar tu retención de masa."
+        } else {
+            val valorFinal = if (ultimosValores.isEmpty()) "S/D" else ultimoValorRegistrado
+            _metricaDinamica.value = listOf("Peso de Control", valorFinal, "kg", "Monitoreo general de salud.")
+            _comparativaSemanal.value = "Mantenimiento activo. Tu registro biométrico ayuda a la IA a ajustar tus planes."
         }
     }
 

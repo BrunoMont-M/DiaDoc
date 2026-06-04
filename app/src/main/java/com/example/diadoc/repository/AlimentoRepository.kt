@@ -22,7 +22,6 @@ class AlimentoRepository(private val db: FirebaseFirestore = FirebaseFirestore.g
         }
     }
 
-    // Trae todo el catálogo de alimentos
     suspend fun obtenerTodosLosAlimentos(): List<Alimento> {
         return try {
             val snapshot = db.collection("alimentos").get().await()
@@ -32,7 +31,6 @@ class AlimentoRepository(private val db: FirebaseFirestore = FirebaseFirestore.g
         }
     }
 
-    // Función clave para la US de escanear alimentos
     suspend fun obtenerAlimentoPorQR(codigoQR: String): Alimento? {
         return try {
             val snapshot = db.collection("alimentos")

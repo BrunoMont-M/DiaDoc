@@ -8,7 +8,7 @@ class CatalogoAlimentosRepository(private val db: FirebaseFirestore = FirebaseFi
 
     suspend fun buscarAlimentos(query: String): List<Alimento> {
         return try {
-            val snapshot = db.collection("catalogo_alimentos").get().await()
+            val snapshot = db.collection("alimentos").get().await()
             val todosLosAlimentos = snapshot.toObjects(Alimento::class.java)
 
             if (query.isBlank()) {

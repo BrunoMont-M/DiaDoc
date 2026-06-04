@@ -30,6 +30,8 @@ import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 import com.example.diadoc.viewmodel.GeneradorPlanViewModel
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
+// FASE US11: Agregamos el import del nuevo ViewModel (Lo crearemos en el próximo paso)
+import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -42,11 +44,9 @@ fun AppNavigation(
     val usuarioActual = FirebaseAuth.getInstance().currentUser
     val destinoInicial = if (usuarioActual != null) "verificador_sesion" else "login"
 
-    // Observamos la ruta actual para saber cuándo ocultar la barra inferior
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Ocultar barra en login, registro y semáforo
     val showBottomBar = currentRoute != null &&
             !currentRoute.startsWith("login") &&
             !currentRoute.startsWith("register") &&
@@ -89,7 +89,7 @@ fun AppNavigation(
         NavHost(
             navController = navController,
             startDestination = destinoInicial,
-            modifier = Modifier.padding(paddingValues) // Esto evita que la barra tape el contenido
+            modifier = Modifier.padding(paddingValues)
         ) {
             composable("verificador_sesion") {
                 val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -139,7 +139,8 @@ fun AppNavigation(
                     uid = uid,
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
                     onNavigateToSOS = { /* TODO: Módulo SOS */ },
-                    onNavigateToGenerador = { navController.navigate("generador_ia/$uid") }
+                    onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
+                    onNavigateToBitacora = { navController.navigate("bitacora/$uid") }
                 )
             }
 
@@ -178,6 +179,16 @@ fun AppNavigation(
                 val planViewModel: PlanNutricionalViewModel = viewModel()
                 PlanNutricionalScreen(
                     viewModel = planViewModel,
+                    uid = uid,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("bitacora/{uid}") { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val bitacoraViewModel: BitacoraViewModel = viewModel()
+                BitacoraScreen(
+                    viewModel = bitacoraViewModel,
                     uid = uid,
                     onNavigateBack = { navController.popBackStack() }
                 )

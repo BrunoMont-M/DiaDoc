@@ -9,5 +9,7 @@ data class DetalleDieta(
     val nombrePlato: String = "",
     val descripcionPlato: String = "",
     val preparacion: List<String> = emptyList(),
-    val consumido: Boolean = false // Para guardar el estado del plato
+    val consumido: Boolean = false, // Para guardar el estado del plato
+    val kcalTotales: Double = 0.0,
+    val carbohidratosTotales: Double = 0.0
 )
