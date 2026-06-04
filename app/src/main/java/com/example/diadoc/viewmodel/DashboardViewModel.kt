@@ -58,6 +58,15 @@ class DashboardViewModel(
     private val _tipDelDia = MutableStateFlow<String?>(null)
     val tipDelDia: StateFlow<String?> = _tipDelDia
 
+    private val _historialMetricas = MutableStateFlow<List<Float>>(emptyList())
+    val historialMetricas: StateFlow<List<Float>> = _historialMetricas
+
+    private val _alertaContextual = MutableStateFlow<String?>(null)
+    val alertaContextual: StateFlow<String?> = _alertaContextual
+
+    private val _comparativaSemanal = MutableStateFlow<String>("")
+    val comparativaSemanal: StateFlow<String> = _comparativaSemanal
+
     private var tipsMensualesCache: List<String> = emptyList()
 
     fun cargarUsuario(uid: String) {
@@ -88,10 +97,16 @@ class DashboardViewModel(
 
             if (patologiasLocales.contains("diabet")) {
                 _metricaDinamica.value = listOf("Última Glucosa", "105", "mg/dL", "Rango Saludable. Actualizado hoy.")
+                _historialMetricas.value = listOf(118f, 110f, 102f, 98f, 105f)
+                _comparativaSemanal.value = "Esta semana tu glucosa promedio en ayunas fue de 106 mg/dL. Esto representa una mejora clínica del 4.5% respecto a tu promedio de la semana pasada (111 mg/dL)."
             } else if (patologiasLocales.contains("sarcopenia") || patologiasLocales.contains("desnutrición")) {
                 _metricaDinamica.value = listOf("Objetivo Proteico", "65", "gramos", "Te faltan 25g para tu meta de retención.")
+                _historialMetricas.value = listOf(50f, 55f, 60f, 62f, 65f)
+                _comparativaSemanal.value = "Tu retención de masa muscular se mantiene estable. Promediaste 60g de proteína diaria, cumpliendo con el umbral anabólico un 12% más que la semana anterior."
             } else {
                 _metricaDinamica.value = listOf("Calorías Activas", "1240", "kcal", "¡Excelente ritmo! En déficit calórico.")
+                _historialMetricas.value = listOf(1100f, 1150f, 1200f, 1180f, 1240f)
+                _comparativaSemanal.value = "Esta semana promediaste 1184 kcal quemadas, manteniendo un déficit calórico constante. ¡Incrementaste un 5% tu tasa de actividad basal!"
             }
 
             val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
@@ -113,13 +128,23 @@ class DashboardViewModel(
                 }
             }
 
+            evaluarAlertasContextuales(plan, _vasosAgua.value)
             val historialPlanes = planRepository.obtenerPlanesPorUsuario(uid)
             calcularRacha(historialPlanes, fechaHoy)
-
             procesarTipMensualConIA(uid, patologiasLocales.ifBlank { "Ninguna" })
 
         } catch (e: Exception) {
             Log.e("Dashboard", "Error cargando dashboard: ${e.message}")
+        }
+    }
+
+    private fun evaluarAlertasContextuales(plan: PlanDiario?, vasos: Int) {
+        if (plan == null) {
+            _alertaContextual.value = "⚠️ No has generado tu plan de hoy. La IA nutricional te espera."
+        } else if (vasos == 0) {
+            _alertaContextual.value = "💧 Alerta de hidratación: El agua es vital para tu metabolismo. ¡Registra tu primer vaso!"
+        } else {
+            _alertaContextual.value = null
         }
     }
 
@@ -162,9 +187,7 @@ class DashboardViewModel(
     }
 
     private suspend fun procesarTipMensualConIA(uid: String, patologias: String) {
-        if (tipsMensualesCache.isNotEmpty()) {
-            return
-        }
+        if (tipsMensualesCache.isNotEmpty()) return
 
         val db = FirebaseFirestore.getInstance()
         val cal = Calendar.getInstance()
@@ -182,7 +205,6 @@ class DashboardViewModel(
                 }
             } else {
                 _tipDelDia.value = "Generando tu cápsula educativa del mes..."
-
                 val generativeModel = GenerativeModel(modelName = "gemini-2.5-flash", apiKey = BuildConfig.GEMINI_API_KEY)
                 val prompt = """
                     Genera un JSON con un array de 30 tips médicos y nutricionales muy cortos (máximo 15 palabras por tip).
@@ -192,7 +214,6 @@ class DashboardViewModel(
 
                 val response = generativeModel.generateContent(prompt)
                 var jsonText = response.text ?: ""
-
                 val startIndex = jsonText.indexOf("{")
                 val endIndex = jsonText.lastIndexOf("}")
                 if (startIndex != -1 && endIndex != -1) {
@@ -201,14 +222,12 @@ class DashboardViewModel(
 
                 val jsonObject = JSONObject(jsonText)
                 val tipsArray = jsonObject.getJSONArray("tips")
-
                 val tipsList = mutableListOf<String>()
                 for (i in 0 until tipsArray.length()) {
                     tipsList.add(tipsArray.getString(i))
                 }
 
                 db.collection("tips_mensuales").document(docId).set(mapOf("tips" to tipsList)).await()
-
                 tipsMensualesCache = tipsList
                 mostrarTipAleatorio()
             }
@@ -233,6 +252,7 @@ class DashboardViewModel(
                 viewModelScope.launch {
                     planRepository.actualizarVasosAgua(planActual.codPlan, nuevoValor)
                 }
+                evaluarAlertasContextuales(planActual, nuevoValor)
             }
         }
     }

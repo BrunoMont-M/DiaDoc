@@ -1,5 +1,6 @@
 package com.example.diadoc.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -23,11 +24,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.diadoc.utils.PdfManager
 import com.example.diadoc.viewmodel.DashboardViewModel
+import com.patrykandpatrick.vico.compose.chart.Chart
+import com.patrykandpatrick.vico.compose.chart.line.lineChart
+import com.patrykandpatrick.vico.compose.chart.line.lineSpec
+import com.patrykandpatrick.vico.core.entry.entryModelOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +45,7 @@ fun DashboardScreen(
     onNavigateToSOS: () -> Unit,
     onNavigateToGenerador: () -> Unit
 ) {
+    val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
     val patologias by viewModel.patologias.collectAsState()
     val vasosAgua by viewModel.vasosAgua.collectAsState()
@@ -48,6 +56,11 @@ fun DashboardScreen(
 
     val rachaActual by viewModel.rachaActual.collectAsState()
     val tipDelDia by viewModel.tipDelDia.collectAsState()
+    val alertaContextual by viewModel.alertaContextual.collectAsState()
+    val historialMetricas by viewModel.historialMetricas.collectAsState()
+
+    val comparativaSemanal by viewModel.comparativaSemanal.collectAsState()
+    var showComparativaModal by remember { mutableStateOf(false) }
 
     val refreshState = rememberPullToRefreshState()
     if (refreshState.isRefreshing) {
@@ -94,6 +107,11 @@ fun DashboardScreen(
                             Text("$rachaActual", fontWeight = FontWeight.Black, color = Color(0xFFFF9800), fontSize = 16.sp)
                         }
                     }
+                    IconButton(onClick = {
+                        PdfManager.generarYCompartirPDF(context, usuario, planHoy, metricaDinamica, rachaActual)
+                    }) {
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = "Exportar PDF", tint = MaterialTheme.colorScheme.primary)
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = MaterialTheme.colorScheme.primary)
                     }
@@ -124,6 +142,24 @@ fun DashboardScreen(
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
 
+                AnimatedVisibility(visible = alertaContextual != null) {
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color(0xFFFFF3E0)),
+                        elevation = CardDefaults.elevatedCardElevation(0.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.WarningAmber, contentDescription = "Alerta", tint = Color(0xFFE65100))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(alertaContextual ?: "", color = Color(0xFFE65100), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                        }
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -137,7 +173,7 @@ fun DashboardScreen(
                     )
                     FilterChip(
                         selected = false,
-                        onClick = { /* TODO: Modal Métrica */ },
+                        onClick = { /* Módulo de US11 */ },
                         label = { Text("Registrar Métrica") },
                         leadingIcon = { Icon(Icons.Default.Addchart, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                         shape = RoundedCornerShape(16.dp)
@@ -198,7 +234,9 @@ fun DashboardScreen(
                         TarjetaClinica(
                             titulo = metricaDinamica[0], valor = metricaDinamica[1],
                             unidad = metricaDinamica[2], subtexto = metricaDinamica[3],
-                            icono = iconoTarjeta, colorPrimario = colorTarjeta
+                            icono = iconoTarjeta, colorPrimario = colorTarjeta,
+                            historial = historialMetricas,
+                            onClick = { showComparativaModal = true } // FASE 3: Enlazamos el clic
                         )
                     }
                 }
@@ -279,6 +317,21 @@ fun DashboardScreen(
             }
         }
 
+        if (showComparativaModal) {
+            ModalBottomSheet(onDismissRequest = { showComparativaModal = false }) {
+                Column(modifier = Modifier.padding(24.dp).fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Analytics, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Análisis Clínico Semanal", fontWeight = FontWeight.Black, fontSize = 22.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text(comparativaSemanal, style = MaterialTheme.typography.bodyLarge, lineHeight = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+        }
+
         if (infoPopupType != null) {
             AlertDialog(
                 onDismissRequest = { infoPopupType = null },
@@ -333,8 +386,18 @@ fun DashboardScreen(
 }
 
 @Composable
-fun TarjetaClinica(titulo: String, valor: String, unidad: String, subtexto: String, icono: androidx.compose.ui.graphics.vector.ImageVector, colorPrimario: Color) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.elevatedCardColors(containerColor = colorPrimario.copy(alpha = 0.1f)), elevation = CardDefaults.elevatedCardElevation(0.dp)) {
+fun TarjetaClinica(
+    titulo: String, valor: String, unidad: String, subtexto: String,
+    icono: androidx.compose.ui.graphics.vector.ImageVector, colorPrimario: Color,
+    historial: List<Float>,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = colorPrimario.copy(alpha = 0.1f)),
+        elevation = CardDefaults.elevatedCardElevation(0.dp)
+    ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(40.dp).background(colorPrimario.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) { Icon(icono, contentDescription = null, tint = colorPrimario) }
@@ -349,13 +412,33 @@ fun TarjetaClinica(titulo: String, valor: String, unidad: String, subtexto: Stri
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(subtexto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            if (historial.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                val chartEntryModel = entryModelOf(*historial.toTypedArray())
+                Chart(
+                    chart = lineChart(
+                        lines = listOf(
+                            lineSpec(
+                                lineColor = colorPrimario,
+                                lineBackgroundShader = null
+                            )
+                        )
+                    ),
+                    model = chartEntryModel,
+                    modifier = Modifier.height(60.dp).fillMaxWidth()
+                )
+            }
         }
     }
 }
 
 @Composable
 fun AnilloProgreso(progreso: Float, color: Color, icono: androidx.compose.ui.graphics.vector.ImageVector, texto: String, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onClick() }.padding(8.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onClick() }.padding(8.dp)
+    ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(72.dp)) {
             CircularProgressIndicator(progress = 1f, color = color.copy(alpha = 0.2f), strokeWidth = 6.dp, modifier = Modifier.fillMaxSize())
             CircularProgressIndicator(progress = progreso, color = color, strokeWidth = 6.dp, strokeCap = StrokeCap.Round, modifier = Modifier.fillMaxSize())

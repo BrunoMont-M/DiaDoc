@@ -89,18 +89,21 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Librería de Material Design
+    // Librería de Material Design e Iconos
     implementation("com.google.android.material:material:1.11.0")
-
-    // Librería de Iconos de Material Design extendidos
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navegación entre pantallas
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // IA, Gráficos, Preferencias, Imágenes
+    // IA, Preferencias, Imágenes
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("com.google.ai.client.generativeai:generativeai:0.6.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Agrego dependecias de Vico para Gráficos
+    implementation("com.patrykandpatrick.vico:compose:1.14.0")
+    implementation("com.patrykandpatrick.vico:compose-m3:1.14.0")
+    implementation("com.patrykandpatrick.vico:core:1.14.0")
 }
