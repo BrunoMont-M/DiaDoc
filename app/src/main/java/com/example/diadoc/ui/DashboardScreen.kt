@@ -46,6 +46,9 @@ fun DashboardScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val comidasHoy by viewModel.comidasHoy.collectAsState()
 
+    val rachaActual by viewModel.rachaActual.collectAsState()
+    val tipDelDia by viewModel.tipDelDia.collectAsState()
+
     val refreshState = rememberPullToRefreshState()
     if (refreshState.isRefreshing) {
         LaunchedEffect(true) { viewModel.refrescarPantalla(uid) }
@@ -78,6 +81,19 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    if (rachaActual > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .background(Color(0xFFFFF3E0), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.LocalFireDepartment, contentDescription = "Racha", tint = Color(0xFFFF9800), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("$rachaActual", fontWeight = FontWeight.Black, color = Color(0xFFFF9800), fontSize = 16.sp)
+                        }
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = MaterialTheme.colorScheme.primary)
                     }
@@ -95,7 +111,6 @@ fun DashboardScreen(
                 Icon(Icons.Default.NotificationsActive, contentDescription = "S.O.S")
             }
         }
-        // Ya no declaramos bottomBar aquí, porque AppNavigation la dibuja globalmente
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -134,6 +149,37 @@ fun DashboardScreen(
                         leadingIcon = { Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFF66BB6A)) },
                         shape = RoundedCornerShape(16.dp)
                     )
+                }
+
+                if (tipDelDia != null) {
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { viewModel.mostrarTipAleatorio() },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                        elevation = CardDefaults.elevatedCardElevation(0.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Lightbulb, contentDescription = "Tip", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text("Tip Médico del Día", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(tipDelDia ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 18.sp)
+                            }
+                        }
+                    }
                 }
 
                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -233,7 +279,6 @@ fun DashboardScreen(
             }
         }
 
-        // POP-UPS DETALLADOS
         if (infoPopupType != null) {
             AlertDialog(
                 onDismissRequest = { infoPopupType = null },

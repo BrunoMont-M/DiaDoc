@@ -1,7 +1,9 @@
 package com.example.diadoc.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.diadoc.BuildConfig
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.PlanDiario
 import com.example.diadoc.model.Usuario
@@ -9,11 +11,16 @@ import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
 import com.example.diadoc.repository.UsuarioRepository
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -44,6 +51,14 @@ class DashboardViewModel(
 
     private val _comidasHoy = MutableStateFlow<List<DetalleDieta>>(emptyList())
     val comidasHoy: StateFlow<List<DetalleDieta>> = _comidasHoy
+
+    private val _rachaActual = MutableStateFlow(0)
+    val rachaActual: StateFlow<Int> = _rachaActual
+
+    private val _tipDelDia = MutableStateFlow<String?>(null)
+    val tipDelDia: StateFlow<String?> = _tipDelDia
+
+    private var tipsMensualesCache: List<String> = emptyList()
 
     fun cargarUsuario(uid: String) {
         viewModelScope.launch {
@@ -85,7 +100,6 @@ class DashboardViewModel(
 
             if (plan != null) {
                 _vasosAgua.value = plan.vasosAgua
-
                 val dieta = dietaRepository.obtenerDietaPorPlan(plan.codPlan)
                 if (dieta != null) {
                     val menu = dietaRepository.obtenerMenuCompleto(dieta.codDieta)
@@ -98,7 +112,116 @@ class DashboardViewModel(
                     _comidasHoy.value = emptyList()
                 }
             }
-        } catch (e: Exception) { }
+
+            val historialPlanes = planRepository.obtenerPlanesPorUsuario(uid)
+            calcularRacha(historialPlanes, fechaHoy)
+
+            procesarTipMensualConIA(uid, patologiasLocales.ifBlank { "Ninguna" })
+
+        } catch (e: Exception) {
+            Log.e("Dashboard", "Error cargando dashboard: ${e.message}")
+        }
+    }
+
+    private fun calcularRacha(planes: List<PlanDiario>, fechaHoyStr: String) {
+        val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val planesOrdenados = planes.mapNotNull {
+            val date = format.parse(it.fechaInicio)
+            if (date != null) Pair(date, it) else null
+        }.sortedByDescending { it.first }
+
+        var racha = 0
+        val cal = Calendar.getInstance()
+        cal.time = Date()
+
+        val planHoy = planesOrdenados.find { format.format(it.first) == fechaHoyStr }?.second
+        if (planHoy != null && planHoy.porcentCumplimiento >= 0.99) {
+            racha++
+        }
+
+        cal.add(Calendar.DAY_OF_YEAR, -1)
+        var diaAnteriorStr = format.format(cal.time)
+
+        for (par in planesOrdenados) {
+            val fechaPlan = format.format(par.first)
+            if (fechaPlan == fechaHoyStr) continue
+
+            if (fechaPlan == diaAnteriorStr) {
+                if (par.second.porcentCumplimiento >= 0.99) {
+                    racha++
+                    cal.add(Calendar.DAY_OF_YEAR, -1)
+                    diaAnteriorStr = format.format(cal.time)
+                } else {
+                    break
+                }
+            } else if (par.first.before(cal.time)) {
+                break
+            }
+        }
+        _rachaActual.value = racha
+    }
+
+    private suspend fun procesarTipMensualConIA(uid: String, patologias: String) {
+        if (tipsMensualesCache.isNotEmpty()) {
+            return
+        }
+
+        val db = FirebaseFirestore.getInstance()
+        val cal = Calendar.getInstance()
+        val mesAnio = SimpleDateFormat("MM_yyyy", Locale.getDefault()).format(cal.time)
+        val docId = "${uid}_${mesAnio}"
+
+        try {
+            val doc = db.collection("tips_mensuales").document(docId).get().await()
+            if (doc.exists()) {
+                @Suppress("UNCHECKED_CAST")
+                val tips = doc.get("tips") as? List<String>
+                if (!tips.isNullOrEmpty()) {
+                    tipsMensualesCache = tips
+                    mostrarTipAleatorio()
+                }
+            } else {
+                _tipDelDia.value = "Generando tu cápsula educativa del mes..."
+
+                val generativeModel = GenerativeModel(modelName = "gemini-2.5-flash", apiKey = BuildConfig.GEMINI_API_KEY)
+                val prompt = """
+                    Genera un JSON con un array de 30 tips médicos y nutricionales muy cortos (máximo 15 palabras por tip).
+                    Deben ser variados y estar estrictamente adaptados para un paciente con estas patologías: $patologias.
+                    Estructura exacta: { "tips": ["tip 1", "tip 2"] }
+                """.trimIndent()
+
+                val response = generativeModel.generateContent(prompt)
+                var jsonText = response.text ?: ""
+
+                val startIndex = jsonText.indexOf("{")
+                val endIndex = jsonText.lastIndexOf("}")
+                if (startIndex != -1 && endIndex != -1) {
+                    jsonText = jsonText.substring(startIndex, endIndex + 1)
+                }
+
+                val jsonObject = JSONObject(jsonText)
+                val tipsArray = jsonObject.getJSONArray("tips")
+
+                val tipsList = mutableListOf<String>()
+                for (i in 0 until tipsArray.length()) {
+                    tipsList.add(tipsArray.getString(i))
+                }
+
+                db.collection("tips_mensuales").document(docId).set(mapOf("tips" to tipsList)).await()
+
+                tipsMensualesCache = tipsList
+                mostrarTipAleatorio()
+            }
+        } catch (e: Exception) {
+            Log.e("DashboardViewModel", "Error al procesar tip: ${e.message}")
+            _tipDelDia.value = "El descanso adecuado es fundamental para la recuperación metabólica."
+        }
+    }
+
+    fun mostrarTipAleatorio() {
+        if (tipsMensualesCache.isNotEmpty()) {
+            _tipDelDia.value = tipsMensualesCache.random()
+        }
     }
 
     fun sumarVasoAgua() {
