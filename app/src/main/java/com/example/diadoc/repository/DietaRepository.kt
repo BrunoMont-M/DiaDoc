@@ -73,4 +73,27 @@ class DietaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getI
             true
         } catch (e: Exception) { false }
     }
+
+    suspend fun eliminarAlimentoDeComida(codDieta: String, codDetDieta: String, codAlimento: String): Boolean {
+        return try {
+            db.collection("dietas").document(codDieta)
+                .collection("detalles_comidas").document(codDetDieta)
+                .collection("alimentos_detalle").document(codAlimento)
+                .delete()
+                .await()
+            true
+        } catch (e: Exception) { false }
+    }
+
+    suspend fun agregarAlimentoAComida(codDieta: String, codDetDieta: String, alimento: Alimento): Boolean {
+        return try {
+            val docRef = db.collection("dietas").document(codDieta)
+                .collection("detalles_comidas").document(codDetDieta)
+                .collection("alimentos_detalle").document()
+
+            val alimentoGuardar = alimento.copy(codAlimento = docRef.id)
+            docRef.set(alimentoGuardar).await()
+            true
+        } catch (e: Exception) { false }
+    }
 }

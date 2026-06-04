@@ -4,18 +4,24 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -23,9 +29,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,6 +54,9 @@ fun PlanNutricionalScreen(
     onNavigateBack: () -> Unit
 ) {
     val dietaState by viewModel.dietaState.collectAsState()
+    val alertaRestriccion by viewModel.alertaRestriccion.collectAsState()
+
+    var editandoCodDetDieta by remember { mutableStateOf<String?>(null) }
 
     val refreshState = rememberPullToRefreshState()
     if (refreshState.isRefreshing) {
@@ -72,7 +83,6 @@ fun PlanNutricionalScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
-        // Ya no declaramos bottomBar aquí, la dibuja AppNavigation globalmente
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -106,6 +116,21 @@ fun PlanNutricionalScreen(
                     val dieta = datos.first
                     val menuCompleto = datos.second
 
+                    if (editandoCodDetDieta != null) {
+                        val entradaEdicion = menuCompleto.entries.find { it.key.codDetDieta == editandoCodDetDieta }
+                        if (entradaEdicion != null) {
+                            ModalBottomSheet(onDismissRequest = { editandoCodDetDieta = null; viewModel.limpiarCatalogo() }) {
+                                EditorDietaContenido(
+                                    detalle = entradaEdicion.key,
+                                    alimentos = entradaEdicion.value,
+                                    viewModel = viewModel,
+                                    uid = uid,
+                                    codDieta = dieta.codDieta
+                                )
+                            }
+                        }
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -113,6 +138,21 @@ fun PlanNutricionalScreen(
                             .verticalScroll(rememberScrollState())
                     ) {
                         Spacer(modifier = Modifier.height(8.dp))
+
+                        val totalKcal = menuCompleto.values.flatten().sumOf { it.kcalBase }
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Resumen Energético", fontWeight = FontWeight.Bold)
+                                Text("${totalKcal.toInt()} Kcal", fontWeight = FontWeight.Black, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
 
                         val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena", "Snack Media Tarde")
                         val menuOrdenado = menuCompleto.entries.sortedBy { entrada ->
@@ -132,7 +172,8 @@ fun PlanNutricionalScreen(
                                         codDetDieta = entrada.key.codDetDieta,
                                         consumidoActual = entrada.key.consumido
                                     )
-                                }
+                                },
+                                onEditClick = { editandoCodDetDieta = entrada.key.codDetDieta }
                             )
                         }
                         Spacer(modifier = Modifier.height(32.dp))
@@ -150,11 +191,140 @@ fun PlanNutricionalScreen(
                 )
             }
         }
+
+        if (alertaRestriccion != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.limpiarAlerta() },
+                title = { Text("Operación Bloqueada", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
+                text = { Text(alertaRestriccion ?: "") },
+                confirmButton = { TextButton(onClick = { viewModel.limpiarAlerta() }) { Text("Entendido") } },
+                icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
+            )
+        }
     }
 }
 
 @Composable
-fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>, onToggleConsumido: () -> Unit) {
+fun EditorDietaContenido(
+    detalle: DetalleDieta,
+    alimentos: List<Alimento>,
+    viewModel: PlanNutricionalViewModel,
+    uid: String,
+    codDieta: String
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val resultados by viewModel.catalogoResultados.collectAsState()
+
+    var isSearchFocused by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .imePadding()
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isSearchFocused) {
+                IconButton(onClick = {
+                    focusManager.clearFocus()
+                    isSearchFocused = false
+                    searchQuery = ""
+                    viewModel.limpiarCatalogo()
+                }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                }
+            }
+            Text(
+                text = if (isSearchFocused) "Buscando Alimento..." else "Editando: ${detalle.tipoComida}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (!isSearchFocused) {
+            Text("Ingredientes Actuales", fontWeight = FontWeight.SemiBold)
+
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                alimentos.forEach { alim ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("• ${alim.nombreAlimento}", modifier = Modifier.weight(1f), fontSize = 14.sp)
+                        Text("${alim.kcalBase} kcal", color = Color.Gray, fontSize = 14.sp)
+                        IconButton(onClick = { viewModel.eliminarAlimento(codDieta, uid, detalle.codDetDieta, alim.codAlimento) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it; viewModel.buscarEnCatalogo(it) },
+            label = { Text("Buscar en catálogo...") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isSearchFocused = it.isFocused },
+            singleLine = true,
+            trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (isSearchFocused || searchQuery.isNotEmpty()) {
+            LazyColumn(modifier = Modifier.weight(1f)) { // Ocupa todo el espacio hasta el teclado
+                items(resultados) { alim ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.agregarAlimento(codDieta, uid, detalle.codDetDieta, alim)
+                                searchQuery = ""
+                                focusManager.clearFocus()
+                                isSearchFocused = false
+                                viewModel.limpiarCatalogo()
+                            }
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(alim.nombreAlimento, fontWeight = FontWeight.Medium)
+                            Text("Proteínas: ${alim.proteinasBase}g | Carbs: ${alim.carbohidratosBase}g", fontSize = 12.sp, color = Color.Gray)
+                        }
+                        Text("${alim.kcalBase} kcal", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
+                        Icon(Icons.Default.AddCircle, contentDescription = "Agregar", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun TarjetaRecetaInteractiva(
+    detalle: DetalleDieta,
+    alimentos: List<Alimento>,
+    onToggleConsumido: () -> Unit,
+    onEditClick: () -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
     val consumido = detalle.consumido
 
@@ -209,7 +379,7 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>, o
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
-                            onClick = { /* TODO: Modificar/Reemplazar */ },
+                            onClick = onEditClick, // EVENTO ENLAZADO AL BOTÓN DE EDITAR
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
@@ -256,12 +426,12 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>, o
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top // SOLUCIÓN 1: Alinear al Top para textos largos
+                            verticalAlignment = Alignment.Top
                         ) {
                             Text(
                                 text = "• ${alimento.nombreAlimento}",
                                 fontSize = 14.sp,
-                                modifier = Modifier.weight(1f).padding(end = 8.dp) // SOLUCIÓN 1: El weight empuja hacia abajo si no cabe, respetando las kcal
+                                modifier = Modifier.weight(1f).padding(end = 8.dp)
                             )
                             Text(
                                 text = "${alimento.kcalBase} kcal",
