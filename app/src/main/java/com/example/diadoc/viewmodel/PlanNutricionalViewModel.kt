@@ -51,4 +51,24 @@ class PlanNutricionalViewModel(
             }
         }
     }
+
+    fun alternarConsumoComida(codPlan: String, codDieta: String, uid: String, codDetDieta: String, consumidoActual: Boolean) {
+        viewModelScope.launch {
+            val nuevoEstado = !consumidoActual
+
+            val exito = dietaRepository.marcarComidaComoConsumida(codDieta, codDetDieta, nuevoEstado)
+
+            if (exito) {
+                val menuCompleto = dietaRepository.obtenerMenuCompleto(codDieta)
+                val totalComidas = menuCompleto.size
+                val comidasConsumidas = menuCompleto.keys.count { it.consumido }
+
+                val nuevoProgreso = if (totalComidas > 0) comidasConsumidas.toDouble() / totalComidas.toDouble() else 0.0
+
+                planRepository.actualizarProgresoDieta(codPlan, nuevoProgreso)
+
+                cargarDietaDeHoy(uid)
+            }
+        }
+    }
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DoneOutline
 import androidx.compose.material.icons.filled.Edit
@@ -16,20 +17,26 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +46,15 @@ fun PlanNutricionalScreen(
     onNavigateBack: () -> Unit
 ) {
     val dietaState by viewModel.dietaState.collectAsState()
+
+    val refreshState = rememberPullToRefreshState()
+    if (refreshState.isRefreshing) {
+        LaunchedEffect(true) {
+            viewModel.cargarDietaDeHoy(uid)
+            delay(500)
+            refreshState.endRefresh()
+        }
+    }
 
     LaunchedEffect(uid) {
         viewModel.cargarDietaDeHoy(uid)
@@ -56,16 +72,38 @@ fun PlanNutricionalScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
+        // Ya no declaramos bottomBar aquí, la dibuja AppNavigation globalmente
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .nestedScroll(refreshState.nestedScrollConnection)
+        ) {
             when (dietaState) {
                 is Resource.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is Resource.Error -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(32.dp).verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = (dietaState as Resource.Error).message ?: "Aún no has generado tu plan de hoy.",
+                            color = Color.Gray,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
                 is Resource.Success -> {
                     val datos = (dietaState as Resource.Success).data
+                    val dieta = datos.first
                     val menuCompleto = datos.second
 
                     Column(
@@ -85,7 +123,16 @@ fun PlanNutricionalScreen(
                         menuOrdenado.forEach { entrada ->
                             TarjetaRecetaInteractiva(
                                 detalle = entrada.key,
-                                alimentos = entrada.value
+                                alimentos = entrada.value,
+                                onToggleConsumido = {
+                                    viewModel.alternarConsumoComida(
+                                        codPlan = dieta.codPlan,
+                                        codDieta = dieta.codDieta,
+                                        uid = uid,
+                                        codDetDieta = entrada.key.codDetDieta,
+                                        consumidoActual = entrada.key.consumido
+                                    )
+                                }
                             )
                         }
                         Spacer(modifier = Modifier.height(32.dp))
@@ -93,14 +140,23 @@ fun PlanNutricionalScreen(
                 }
                 null -> { }
             }
+
+            if (refreshState.progress > 0f || refreshState.isRefreshing) {
+                PullToRefreshContainer(
+                    state = refreshState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
 
 @Composable
-fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
+fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>, onToggleConsumido: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    var consumido by remember { mutableStateOf(false) }
+    val consumido = detalle.consumido
 
     ElevatedCard(
         modifier = Modifier
@@ -115,7 +171,6 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
     ) {
         Column(modifier = Modifier.animateContentSize()) {
 
-            // 1. IMAGEN DE PORTADA
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -138,7 +193,6 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
                 )
             }
 
-            // 2. CABECERA
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -155,7 +209,7 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
-                            onClick = { /* TODO: Abrir menú para Modificar/Reemplazar (US de Personalización) */ },
+                            onClick = { /* TODO: Modificar/Reemplazar */ },
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
@@ -192,7 +246,6 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
                     fontSize = 14.sp
                 )
 
-                // 3. CARD DINÁMICA
                 if (expanded) {
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -202,10 +255,19 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
                     alimentos.forEach { alimento ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top // SOLUCIÓN 1: Alinear al Top para textos largos
                         ) {
-                            Text("• ${alimento.nombreAlimento}", fontSize = 14.sp)
-                            Text("${alimento.kcalBase} kcal", color = Color.Gray, fontSize = 14.sp)
+                            Text(
+                                text = "• ${alimento.nombreAlimento}",
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f).padding(end = 8.dp) // SOLUCIÓN 1: El weight empuja hacia abajo si no cabe, respetando las kcal
+                            )
+                            Text(
+                                text = "${alimento.kcalBase} kcal",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
                         }
                     }
 
@@ -232,10 +294,9 @@ fun TarjetaRecetaInteractiva(detalle: DetalleDieta, alimentos: List<Alimento>) {
                         }
                     }
 
-                    // 4. BOTÓN DE CHECK-IN
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
-                        onClick = { consumido = !consumido },
+                        onClick = onToggleConsumido,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (consumido) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary

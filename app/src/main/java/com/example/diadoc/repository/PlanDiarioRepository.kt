@@ -28,7 +28,6 @@ class PlanDiarioRepository(private val db: FirebaseFirestore = FirebaseFirestore
                 .whereEqualTo("codUsuario", codUsuario)
                 .get()
                 .await()
-
             snapshot.toObjects(PlanDiario::class.java)
         } catch (e: Exception) {
             emptyList()
@@ -42,10 +41,25 @@ class PlanDiarioRepository(private val db: FirebaseFirestore = FirebaseFirestore
                 .whereEqualTo("fechaInicio", fechaHoy)
                 .get()
                 .await()
-
             if (!snapshot.isEmpty) snapshot.documents[0].toObject(PlanDiario::class.java) else null
         } catch (e: Exception) {
             null
         }
+    }
+
+    suspend fun actualizarVasosAgua(codPlan: String, nuevosVasos: Int): Boolean {
+        return try {
+            db.collection("planesDiarios").document(codPlan)
+                .update("vasosAgua", nuevosVasos).await()
+            true
+        } catch (e: Exception) { false }
+    }
+
+    suspend fun actualizarProgresoDieta(codPlan: String, nuevoPorcentaje: Double): Boolean {
+        return try {
+            db.collection("planesDiarios").document(codPlan)
+                .update("porcentCumplimiento", nuevoPorcentaje).await()
+            true
+        } catch (e: Exception) { false }
     }
 }

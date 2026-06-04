@@ -7,5 +7,6 @@ data class PlanDiario(
     val fechaFin: String = "",
     val objetivoPlan: String = "",
     val porcentCumplimiento: Double = 0.0,
-    val versionIA: String = ""
+    val versionIA: String = "",
+    val vasosAgua: Int = 0 // Para contabilizar el agua
 )

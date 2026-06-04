@@ -63,4 +63,14 @@ class DietaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getI
         } catch (e: Exception) { }
         return menu
     }
+
+    suspend fun marcarComidaComoConsumida(codDieta: String, codDetDieta: String, consumido: Boolean): Boolean {
+        return try {
+            db.collection("dietas").document(codDieta)
+                .collection("detalles_comidas").document(codDetDieta)
+                .update("consumido", consumido)
+                .await()
+            true
+        } catch (e: Exception) { false }
+    }
 }

@@ -8,5 +8,6 @@ data class DetalleDieta(
     // Nuevos campos para poder guardar la receta en sí
     val nombrePlato: String = "",
     val descripcionPlato: String = "",
-    val preparacion: List<String> = emptyList()
+    val preparacion: List<String> = emptyList(),
+    val consumido: Boolean = false // Para guardar el estado del plato
 )
