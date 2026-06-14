@@ -46,7 +46,8 @@ fun DashboardScreen(
     onNavigateToSOS: () -> Unit,
     onNavigateToGenerador: () -> Unit,
     onNavigateToBitacora: () -> Unit,
-    onNavigateToCatalogo: () -> Unit // Agregamos la acción para la US14
+    onNavigateToCatalogo: () -> Unit,      // Acción para la US14
+    onNavigateToEjercicios: () -> Unit    // Acción para la US15
 ) {
     val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
@@ -317,6 +318,20 @@ fun DashboardScreen(
                     Icon(Icons.Default.RestaurantMenu, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Probar Catálogo Alimentos (Admin)", fontWeight = FontWeight.Bold)
+                }
+
+                // NUESTRO BOTÓN TEMPORAL DE PRUEBAS PARA LA US15
+                Button(
+                    onClick = onNavigateToEjercicios,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A3E0)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.FitnessCenter, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Probar Catálogo Ejercicios (Admin)", fontWeight = FontWeight.Bold)
                 }
 
                 ElevatedCard(

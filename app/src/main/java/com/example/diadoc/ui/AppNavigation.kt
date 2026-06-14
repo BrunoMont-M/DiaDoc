@@ -37,6 +37,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.example.diadoc.ui.CatalogoAlimentosScreen
 
+// FASE US15: Asegurate de importar acá tus archivos de ejercicios si ya los tenés creados:
+// import com.example.diadoc.viewmodel.CatalogoEjerciciosViewModel
+// import com.example.diadoc.ui.CatalogoEjerciciosScreen
+
 @Composable
 fun AppNavigation(
     authViewModel: AuthViewModel,
@@ -137,14 +141,16 @@ fun AppNavigation(
 
             composable("dashboard/{uid}") { backStackEntry ->
                 val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val userUid = FirebaseAuth.getInstance().currentUser?.uid ?: uid
                 DashboardScreen(
                     viewModel = dashboardViewModel,
-                    uid = uid,
+                    uid = userUid,
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
                     onNavigateToSOS = { /* TODO: Módulo SOS */ },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
-                    onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") } // Enlazamos tu pantalla al botón del Dashboard
+                    onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") },
+                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") } // <-- CORREGIDO: Mapeado definitivo de la US15
                 )
             }
 
@@ -199,10 +205,22 @@ fun AppNavigation(
             }
 
             composable("catalogo_alimentos") {
+                val catalogoViewModel: CatalogoAlimentosViewModel = viewModel()
                 CatalogoAlimentosScreen(
+                    viewModel = catalogoViewModel,
                     onBackClick = { navController.popBackStack() }
                 )
+            }
 
+            // --- NUEVA RUTA PARA LA US15 (CATÁLOGO EJERCICIOS) ---
+            composable("catalogo_ejercicios") {
+                // Si te sale en rojo el ViewModel o la Pantalla de ejercicios acá abajo,
+                // parate arriba de la palabra y dale Alt+Enter para que Android Studio ponga el import automático.
+                val ejerciciosViewModel: com.example.diadoc.viewmodel.CatalogoEjerciciosViewModel = viewModel()
+                CatalogoEjerciciosScreen(
+                    viewModel = ejerciciosViewModel,
+                    onBackClick = { navController.popBackStack() }
+                )
             }
         }
     }
