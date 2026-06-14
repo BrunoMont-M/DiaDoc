@@ -17,42 +17,62 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
-
-// Definimos una estructura para el alimento dentro del mismo archivo para facilitar las cosas
-data class AlimentoUI(
-    val id: String,
-    val nombre: String,
-    val carbohidratos: String,
-    val calorias: String
-)
+import com.example.diadoc.model.Alimento
+import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel // Asegurate de que este import sea el correcto en tu proyecto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogoAlimentosScreen(
-    viewModel: CatalogoAlimentosViewModel,
+    viewModel: CatalogoAlimentosViewModel, // <-- ACÁ RECIBE EL VIEWMODEL COMO PIDE APPNAVIGATION
     onBackClick: () -> Unit = {}
 ) {
-    // Lista de prueba local usando la nueva estructura con números reales
+    // Lista de prueba usando tu estructura de datos oficial del DC
     var listaAlimentos by remember {
         mutableStateOf(
             listOf(
-                AlimentoUI("1", "Manzana verde", "14", "52"),
-                AlimentoUI("2", "Galletas de arroz", "7", "35"),
-                AlimentoUI("3", "Yogurt natural", "5", "59")
+                Alimento(
+                    codAlimento = "1",
+                    nombreAlimento = "Pechuga de pollo",
+                    kcalBase = 165.0,
+                    proteinasBase = 31.0,
+                    carbohidratosBase = 0.0,
+                    grasasBase = 3.6,
+                    indiceGlucemico = 0
+                ),
+                Alimento(
+                    codAlimento = "2",
+                    nombreAlimento = "Arroz integral",
+                    kcalBase = 111.0,
+                    proteinasBase = 2.6,
+                    carbohidratosBase = 23.0,
+                    grasasBase = 0.9,
+                    indiceGlucemico = 50
+                ),
+                Alimento(
+                    codAlimento = "3",
+                    nombreAlimento = "Manzana roja",
+                    kcalBase = 52.0,
+                    proteinasBase = 0.3,
+                    carbohidratosBase = 14.0,
+                    grasasBase = 0.2,
+                    indiceGlucemico = 38
+                )
             )
         )
     }
 
-    // Estados para controlar los diálogos de Alerta
+    // Estados para los Diálogos de ABM
     var showAddDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
-    var alimentoAEditar by remember { mutableStateOf<AlimentoUI?>(null) }
+    var alimentoAEditar by remember { mutableStateOf<Alimento?>(null) }
 
     // Campos del formulario
     var nombreInput by remember { mutableStateOf("") }
+    var kcalInput by remember { mutableStateOf("") }
+    var proteinasInput by remember { mutableStateOf("") }
     var carbohidratosInput by remember { mutableStateOf("") }
-    var caloriasInput by remember { mutableStateOf("") }
+    var grasasInput by remember { mutableStateOf("") }
+    var igInput by remember { mutableStateOf("") }
 
     val backgroundColor = Color(0xFF121214)
     val cardColor = Color(0xFF1E1E24)
@@ -73,10 +93,12 @@ fun CatalogoAlimentosScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // Limpiamos los inputs y abrimos el diálogo de agregar
                     nombreInput = ""
+                    kcalInput = ""
+                    proteinasInput = ""
                     carbohidratosInput = ""
-                    caloriasInput = ""
+                    grasasInput = ""
+                    igInput = "0"
                     showAddDialog = true
                 },
                 containerColor = primaryBlue,
@@ -95,7 +117,7 @@ fun CatalogoAlimentosScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Panel de Administrador",
+                text = "Gestión del Catálogo Maestro (Admin)",
                 color = Color.Gray,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -103,7 +125,7 @@ fun CatalogoAlimentosScreen(
 
             if (listaAlimentos.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No hay alimentos en el catálogo", color = Color.Gray, fontSize = 16.sp)
+                    Text("No hay alimentos en el catálogo maestro", color = Color.Gray, fontSize = 16.sp)
                 }
             } else {
                 LazyColumn(
@@ -116,9 +138,12 @@ fun CatalogoAlimentosScreen(
                             cardColor = cardColor,
                             onEditClick = {
                                 alimentoAEditar = alimento
-                                nombreInput = alimento.nombre
-                                carbohidratosInput = alimento.carbohidratos
-                                caloriasInput = alimento.calorias
+                                nombreInput = alimento.nombreAlimento
+                                kcalInput = alimento.kcalBase.toString()
+                                proteinasInput = alimento.proteinasBase.toString()
+                                carbohidratosInput = alimento.carbohidratosBase.toString()
+                                grasasInput = alimento.grasasBase.toString()
+                                igInput = alimento.indiceGlucemico.toString()
                                 showEditDialog = true
                             }
                         )
@@ -128,38 +153,34 @@ fun CatalogoAlimentosScreen(
         }
     }
 
-    // --- DIÁLOGO PARA AGREGAR ALIMENTO ---
+    // --- DIÁLOGO AGREGAR ---
     if (showAddDialog) {
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Agregar Alimento") },
+            title = { Text("Nuevo Alimento Base") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextField(value = nombreInput, onValueChange = { nombreInput = it }, label = { Text("Nombre") })
-                    TextField(
-                        value = carbohidratosInput,
-                        onValueChange = { carbohidratosInput = it },
-                        label = { Text("Carbohidratos (g)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                    TextField(
-                        value = caloriasInput,
-                        onValueChange = { caloriasInput = it },
-                        label = { Text("Calorías (kcal)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
+                    TextField(value = kcalInput, onValueChange = { kcalInput = it }, label = { Text("Kcal por 100g") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = proteinasInput, onValueChange = { proteinasInput = it }, label = { Text("Proteínas (g)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = carbohidratosInput, onValueChange = { carbohidratosInput = it }, label = { Text("Carbohidratos (g)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = grasasInput, onValueChange = { grasasInput = it }, label = { Text("Grasas (g)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = igInput, onValueChange = { igInput = it }, label = { Text("Índice Glucémico") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     if (nombreInput.isNotBlank()) {
-                        val nuevoAlimento = AlimentoUI(
-                            id = System.currentTimeMillis().toString(),
-                            nombre = nombreInput,
-                            carbohidratos = carbohidratosInput.ifBlank { "0" },
-                            calorias = caloriasInput.ifBlank { "0" }
+                        val nuevo = Alimento(
+                            codAlimento = System.currentTimeMillis().toString(),
+                            nombreAlimento = nombreInput,
+                            kcalBase = kcalInput.toDoubleOrNull() ?: 0.0,
+                            proteinasBase = proteinasInput.toDoubleOrNull() ?: 0.0,
+                            carbohidratosBase = carbohidratosInput.toDoubleOrNull() ?: 0.0,
+                            grasasBase = grasasInput.toDoubleOrNull() ?: 0.0,
+                            indiceGlucemico = igInput.toIntOrNull() ?: 0
                         )
-                        listaAlimentos = listaAlimentos + nuevoAlimento
+                        listaAlimentos = listaAlimentos + nuevo
                     }
                     showAddDialog = false
                 }) { Text("Guardar") }
@@ -168,7 +189,7 @@ fun CatalogoAlimentosScreen(
         )
     }
 
-    // --- DIÁLOGO PARA EDITAR ALIMENTO ---
+    // --- DIÁLOGO EDITAR / ELIMINAR ---
     if (showEditDialog && alimentoAEditar != null) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
@@ -176,38 +197,48 @@ fun CatalogoAlimentosScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextField(value = nombreInput, onValueChange = { nombreInput = it }, label = { Text("Nombre") })
-                    TextField(
-                        value = carbohidratosInput,
-                        onValueChange = { carbohidratosInput = it },
-                        label = { Text("Carbohidratos (g)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                    TextField(
-                        value = caloriasInput,
-                        onValueChange = { caloriasInput = it },
-                        label = { Text("Calorías (kcal)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
+                    TextField(value = kcalInput, onValueChange = { kcalInput = it }, label = { Text("Kcal") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = proteinasInput, onValueChange = { proteinasInput = it }, label = { Text("Proteínas") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = carbohidratosInput, onValueChange = { carbohidratosInput = it }, label = { Text("Carbohidratos") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = grasasInput, onValueChange = { grasasInput = it }, label = { Text("Grasas") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TextField(value = igInput, onValueChange = { igInput = it }, label = { Text("Índice Glucémico") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    listaAlimentos = listaAlimentos.map {
-                        if (it.id == alimentoAEditar?.id) {
-                            it.copy(nombre = nombreInput, carbohidratos = carbohidratosInput, calorias = caloriasInput)
-                        } else it
-                    }
-                    showEditDialog = false
-                    alimentoAEditar = null
-                }) { Text("Actualizar") }
-            },
-            dismissButton = { TextButton(onClick = { showEditDialog = false }) { Text("Cancelar") } }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            listaAlimentos = listaAlimentos.filter { it.codAlimento != alimentoAEditar?.codAlimento }
+                            showEditDialog = false
+                            alimentoAEditar = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                    ) { Text("Eliminar") }
+
+                    Button(onClick = {
+                        listaAlimentos = listaAlimentos.map {
+                            if (it.codAlimento == alimentoAEditar?.codAlimento) {
+                                it.copy(
+                                    nombreAlimento = nombreInput,
+                                    kcalBase = kcalInput.toDoubleOrNull() ?: 0.0,
+                                    proteinasBase = proteinasInput.toDoubleOrNull() ?: 0.0,
+                                    carbohidratosBase = carbohidratosInput.toDoubleOrNull() ?: 0.0,
+                                    grasasBase = grasasInput.toDoubleOrNull() ?: 0.0,
+                                    indiceGlucemico = igInput.toIntOrNull() ?: 0
+                                )
+                            } else it
+                        }
+                        showEditDialog = false
+                        alimentoAEditar = null
+                    }) { Text("Guardar") }
+                }
+            }
         )
     }
 }
 
 @Composable
-fun AlimentoItem(alimento: AlimentoUI, cardColor: Color, onEditClick: () -> Unit) {
+fun AlimentoItem(alimento: Alimento, cardColor: Color, onEditClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -221,12 +252,17 @@ fun AlimentoItem(alimento: AlimentoUI, cardColor: Color, onEditClick: () -> Unit
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = alimento.nombre, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(text = alimento.nombreAlimento, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Carbohidratos: ${alimento.carbohidratos} g | Calorías: ${alimento.calorias} kcal",
+                    text = "Kcal: ${alimento.kcalBase} | IG: ${alimento.indiceGlucemico}",
                     color = Color.LightGray,
                     fontSize = 14.sp
+                )
+                Text(
+                    text = "P: ${alimento.proteinasBase}g | C: ${alimento.carbohidratosBase}g | G: ${alimento.grasasBase}g",
+                    color = Color.Gray,
+                    fontSize = 12.sp
                 )
             }
 
