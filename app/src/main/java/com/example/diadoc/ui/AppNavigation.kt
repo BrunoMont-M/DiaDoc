@@ -199,11 +199,10 @@ fun AppNavigation(
             }
 
             composable("catalogo_alimentos") {
-                val catalogoViewModel: CatalogoAlimentosViewModel = viewModel()
                 CatalogoAlimentosScreen(
-                    viewModel = catalogoViewModel,
                     onBackClick = { navController.popBackStack() }
                 )
+
             }
         }
     }
