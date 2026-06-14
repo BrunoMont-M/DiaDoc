@@ -71,13 +71,13 @@ fun AppNavigation(
                         selected = currentRoute?.startsWith("dashboard") == true,
                         onClick = { navController.navigate("dashboard/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
                     )
-                    // 🚨 MODIFICADO PARA LA US10: Ahora apunta de manera directa al creador de recetas
+                    // 🚨 MODIFICADO: Ahora apunta al menú intermedio para unificar la US9 y la US10
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Restaurant, contentDescription = "Nutrición") },
                         label = { Text("Nutrición") },
-                        selected = currentRoute == "crear_receta",
+                        selected = currentRoute == "menu_nutricion" || currentRoute == "registrar_alimento" || currentRoute == "crear_receta",
                         onClick = {
-                            navController.navigate("crear_receta") {
+                            navController.navigate("menu_nutricion") {
                                 popUpTo("dashboard/$uidGlobal") { inclusive = false }
                             }
                         }
@@ -231,11 +231,27 @@ fun AppNavigation(
                 DashboardSosScreen()
             }
 
-            // --- 🚨 NUEVA RUTA FASE US10: CREACIÓN DE RECETAS PERSONALIZADAS ---
+            // --- 🚨 NUEVO MENÚ INTERMEDIO DE NUTRICIÓN (UNE US9 Y US10) ---
+            composable("menu_nutricion") {
+                NutricionMenuScreen(
+                    onNavigateToRegistrarAlimento = { navController.navigate("registrar_alimento") },
+                    onNavigateToCrearReceta = { navController.navigate("crear_receta") }
+                )
+            }
+
+            // --- FASE US10: CREACIÓN DE RECETAS PERSONALIZADAS ---
             composable("crear_receta") {
                 CrearRecetaScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") }
+                )
+            }
+
+            // --- FASE US9: REGISTRAR ALIMENTO QR O CARGA MANUAL ---
+            composable("registrar_alimento") {
+                RegistrarAlimentoScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onScanQrClick = { /* Próximo paso: Integración con la cámara */ }
                 )
             }
         }
