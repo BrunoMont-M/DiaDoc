@@ -146,11 +146,12 @@ fun AppNavigation(
                     viewModel = dashboardViewModel,
                     uid = userUid,
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
-                    onNavigateToSOS = { /* TODO: Módulo SOS */ },
+                    // 🚨 CORREGIDO: Ahora el botón de la campana navega de verdad a la pantalla S.O.S.
+                    onNavigateToSOS = { navController.navigate("dashboard_sos") },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
                     onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") },
-                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") } // <-- CORREGIDO: Mapeado definitivo de la US15
+                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") }
                 )
             }
 
@@ -214,13 +215,16 @@ fun AppNavigation(
 
             // --- NUEVA RUTA PARA LA US15 (CATÁLOGO EJERCICIOS) ---
             composable("catalogo_ejercicios") {
-                // Si te sale en rojo el ViewModel o la Pantalla de ejercicios acá abajo,
-                // parate arriba de la palabra y dale Alt+Enter para que Android Studio ponga el import automático.
                 val ejerciciosViewModel: com.example.diadoc.viewmodel.CatalogoEjerciciosViewModel = viewModel()
                 CatalogoEjerciciosScreen(
                     viewModel = ejerciciosViewModel,
                     onBackClick = { navController.popBackStack() }
                 )
+            }
+
+            // --- NUEVA RUTA PARA LA US13 (DASHBOARD SOS) ---
+            composable("dashboard_sos") {
+                DashboardSosScreen()
             }
         }
     }
