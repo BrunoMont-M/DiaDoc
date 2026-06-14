@@ -71,11 +71,16 @@ fun AppNavigation(
                         selected = currentRoute?.startsWith("dashboard") == true,
                         onClick = { navController.navigate("dashboard/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
                     )
+                    // 🚨 MODIFICADO PARA LA US10: Ahora apunta de manera directa al creador de recetas
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Restaurant, contentDescription = "Nutrición") },
                         label = { Text("Nutrición") },
-                        selected = currentRoute?.startsWith("plan_nutricional") == true,
-                        onClick = { navController.navigate("plan_nutricional/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
+                        selected = currentRoute == "crear_receta",
+                        onClick = {
+                            navController.navigate("crear_receta") {
+                                popUpTo("dashboard/$uidGlobal") { inclusive = false }
+                            }
+                        }
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.DirectionsRun, contentDescription = "Actividad") },
@@ -146,7 +151,6 @@ fun AppNavigation(
                     viewModel = dashboardViewModel,
                     uid = userUid,
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
-                    // 🚨 CORREGIDO: Ahora el botón de la campana navega de verdad a la pantalla S.O.S.
                     onNavigateToSOS = { navController.navigate("dashboard_sos") },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
@@ -225,6 +229,14 @@ fun AppNavigation(
             // --- NUEVA RUTA PARA LA US13 (DASHBOARD SOS) ---
             composable("dashboard_sos") {
                 DashboardSosScreen()
+            }
+
+            // --- 🚨 NUEVA RUTA FASE US10: CREACIÓN DE RECETAS PERSONALIZADAS ---
+            composable("crear_receta") {
+                CrearRecetaScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") }
+                )
             }
         }
     }
