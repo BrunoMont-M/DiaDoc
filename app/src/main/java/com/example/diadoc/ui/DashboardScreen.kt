@@ -45,7 +45,8 @@ fun DashboardScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToSOS: () -> Unit,
     onNavigateToGenerador: () -> Unit,
-    onNavigateToBitacora: () -> Unit
+    onNavigateToBitacora: () -> Unit,
+    onNavigateToCatalogo: () -> Unit // Agregamos la acción para la US14
 ) {
     val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
@@ -228,7 +229,7 @@ fun DashboardScreen(
                                 valorActual < 70f -> Color(0xFFD32F2F)
                                 valorActual <= 100f -> Color(0xFF4CAF50)
                                 valorActual <= 140f -> Color(0xFFFF9800)
-                                else -> Color(0xFFC62828) //
+                                else -> Color(0xFFC62828)
                             }
                         }
                         patologias.contains("sarcopenia") -> Color(0xFF8E24AA)
@@ -302,6 +303,20 @@ fun DashboardScreen(
                         }
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Ir a Bitácora", tint = MaterialTheme.colorScheme.tertiary)
                     }
+                }
+
+                // NUESTRO BOTÓN TEMPORAL DE PRUEBAS PARA LA US14
+                Button(
+                    onClick = onNavigateToCatalogo,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.RestaurantMenu, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Probar Catálogo Alimentos (Admin)", fontWeight = FontWeight.Bold)
                 }
 
                 ElevatedCard(

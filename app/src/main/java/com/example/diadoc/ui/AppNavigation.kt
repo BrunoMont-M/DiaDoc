@@ -30,9 +30,12 @@ import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 import com.example.diadoc.viewmodel.GeneradorPlanViewModel
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
-// FASE US11: Agregamos el import del nuevo ViewModel (Lo crearemos en el próximo paso)
+// FASE US11: Agregamos el import del nuevo ViewModel
 import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.google.firebase.auth.FirebaseAuth
+// FASE US14: Agregamos el import de tu nueva pantalla y su ViewModel
+import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
+import com.example.diadoc.ui.CatalogoAlimentosScreen
 
 @Composable
 fun AppNavigation(
@@ -80,7 +83,7 @@ fun AppNavigation(
                         icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Progreso") },
                         label = { Text("Progreso") },
                         selected = currentRoute?.startsWith("progreso") == true,
-                        onClick = { /* TODO: Pantalla de Progreso */ }
+                        onClick = { /* TODO: Pantalla de Progress */ }
                     )
                 }
             }
@@ -140,7 +143,8 @@ fun AppNavigation(
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
                     onNavigateToSOS = { /* TODO: Módulo SOS */ },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
-                    onNavigateToBitacora = { navController.navigate("bitacora/$uid") }
+                    onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
+                    onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") } // Enlazamos tu pantalla al botón del Dashboard
                 )
             }
 
@@ -191,6 +195,14 @@ fun AppNavigation(
                     viewModel = bitacoraViewModel,
                     uid = uid,
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("catalogo_alimentos") {
+                val catalogoViewModel: CatalogoAlimentosViewModel = viewModel()
+                CatalogoAlimentosScreen(
+                    viewModel = catalogoViewModel,
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }
