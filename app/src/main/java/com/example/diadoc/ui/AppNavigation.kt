@@ -68,8 +68,12 @@ fun AppNavigation(
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Restaurant, contentDescription = "Nutrición") },
                         label = { Text("Nutrición") },
-                        selected = currentRoute?.startsWith("plan_nutricional") == true,
-                        onClick = { navController.navigate("plan_nutricional/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
+                        selected = currentRoute == "menu_nutricion" || currentRoute == "registrar_alimento" || currentRoute == "crear_receta",
+                        onClick = {
+                            navController.navigate("menu_nutricion") {
+                                popUpTo("dashboard/$uidGlobal") { inclusive = false }
+                            }
+                        }
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.DirectionsRun, contentDescription = "Actividad") },
@@ -135,15 +139,17 @@ fun AppNavigation(
 
             composable("dashboard/{uid}") { backStackEntry ->
                 val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val userUid = FirebaseAuth.getInstance().currentUser?.uid ?: uid
                 DashboardScreen(
                     viewModel = dashboardViewModel,
-                    uid = uid,
+                    uid = userUid,
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
-                    onNavigateToSOS = { /* TODO: Módulo SOS */ },
+                    onNavigateToSOS = { navController.navigate("dashboard_sos") },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
                     onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") },
-                    onNavigateToActividad = { navController.navigate("actividad/$uid") }
+                    onNavigateToActividad = { navController.navigate("actividad/$uid") }, // Tu función US06
+                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") } // La función US15 de Carlos
                 )
             }
 
@@ -223,6 +229,39 @@ fun AppNavigation(
                 CatalogoAlimentosScreen(
                     viewModel = catalogoViewModel,
                     onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            composable("catalogo_ejercicios") {
+                val ejerciciosViewModel: com.example.diadoc.viewmodel.CatalogoEjerciciosViewModel = viewModel()
+                CatalogoEjerciciosScreen(
+                    viewModel = ejerciciosViewModel,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            composable("dashboard_sos") {
+                DashboardSosScreen()
+            }
+
+            composable("menu_nutricion") {
+                NutricionMenuScreen(
+                    onNavigateToRegistrarAlimento = { navController.navigate("registrar_alimento") },
+                    onNavigateToCrearReceta = { navController.navigate("crear_receta") }
+                )
+            }
+
+            composable("crear_receta") {
+                CrearRecetaScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") }
+                )
+            }
+
+            composable("registrar_alimento") {
+                RegistrarAlimentoScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onScanQrClick = { /* Próximo paso: Integración con la cámara */ }
                 )
             }
         }

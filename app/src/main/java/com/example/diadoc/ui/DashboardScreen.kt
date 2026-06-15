@@ -49,7 +49,8 @@ fun DashboardScreen(
     onNavigateToGenerador: () -> Unit,
     onNavigateToBitacora: () -> Unit,
     onNavigateToCatalogo: () -> Unit,
-    onNavigateToActividad: () -> Unit
+    onNavigateToActividad: () -> Unit,
+    onNavigateToEjercicios: () -> Unit
 ) {
     val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
@@ -92,6 +93,16 @@ fun DashboardScreen(
 
     var agendaExpanded by remember { mutableStateOf(true) }
     var infoPopupType by remember { mutableStateOf<String?>(null) }
+
+    // DETECTA EL SCROLL PARA AGRANDAR/ACHICAR EL BOTÓN
+    val scrollState = rememberScrollState()
+    var lastScrollOffset by remember { mutableStateOf(0) }
+    var isFabExpanded by remember { mutableStateOf(true) }
+
+    LaunchedEffect(scrollState.value) {
+        isFabExpanded = scrollState.value <= lastScrollOffset || scrollState.value < 50
+        lastScrollOffset = scrollState.value
+    }
 
     Scaffold(
         topBar = {
@@ -136,16 +147,6 @@ fun DashboardScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToSOS,
-                containerColor = Color(0xFFE53935),
-                contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.NotificationsActive, contentDescription = "S.O.S")
-            }
         }
     ) { paddingValues ->
         Box(
@@ -155,7 +156,9 @@ fun DashboardScreen(
                 .nestedScroll(refreshState.nestedScrollConnection)
         ) {
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -323,9 +326,7 @@ fun DashboardScreen(
 
                 Button(
                     onClick = onNavigateToCatalogo,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -334,8 +335,21 @@ fun DashboardScreen(
                     Text("Probar Catálogo Alimentos (Admin)", fontWeight = FontWeight.Bold)
                 }
 
+                Button(
+                    onClick = onNavigateToEjercicios,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A3E0)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.FitnessCenter, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Probar Catálogo Ejercicios (Admin)", fontWeight = FontWeight.Bold)
+                }
+
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                         .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium))
                         .clickable { agendaExpanded = !agendaExpanded },
                     shape = RoundedCornerShape(16.dp),
@@ -361,10 +375,13 @@ fun DashboardScreen(
                             Text(
                                 text = if (planHoy != null) "Plan activo: Sigue tu menú sugerido." else "Sugerido por IA (Plan pendiente)",
                                 style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 24.dp, top = 2.dp)
+                                modifier = Modifier.padding(start = 24.dp, top = 2.dp, end = 60.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = onNavigateToGenerador, modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = onNavigateToGenerador,
+                                modifier = Modifier.fillMaxWidth().padding(end = 40.dp)
+                            ) {
                                 Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(if (planHoy != null) "Regenerar Plan con IA" else "Generar Plan con IA")
@@ -372,8 +389,22 @@ fun DashboardScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(80.dp))
+
+                Spacer(modifier = Modifier.height(100.dp))
             }
+
+            ExtendedFloatingActionButton(
+                onClick = onNavigateToSOS,
+                containerColor = Color(0xFFE53935),
+                contentColor = Color.White,
+                shape = CircleShape,
+                expanded = isFabExpanded,
+                icon = { Icon(Icons.Default.Notifications, contentDescription = "S.O.S") },
+                text = { Text("SOS", fontWeight = FontWeight.Black) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 92.dp)
+            )
 
             if (refreshState.progress > 0f || refreshState.isRefreshing) {
                 PullToRefreshContainer(state = refreshState, modifier = Modifier.align(Alignment.TopCenter), containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.primary)
