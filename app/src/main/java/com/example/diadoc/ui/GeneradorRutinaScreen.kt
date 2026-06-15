@@ -39,7 +39,7 @@ fun GeneradorRutinaScreen(
     viewModel: GeneradorRutinaViewModel,
     uid: String,
     onNavigateBack: () -> Unit,
-    onNavigateToEditor: () -> Unit
+    onNavigateToEditor: () -> Unit // El puente existe aquí
 ) {
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -189,7 +189,7 @@ fun GeneradorRutinaScreen(
                                         viewModel.marcarEjercicioCompletado(codRutina, detalle.codDetalle, detalle.consumido)
                                     }
                                 },
-                                onNavigateToEditor = onNavigateToEditor
+                                onNavigateToEditor = onNavigateToEditor // Pasamos el puente a la tarjeta
                             )
                         }
 
