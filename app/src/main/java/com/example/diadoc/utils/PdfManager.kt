@@ -17,6 +17,7 @@ import java.util.Date
 import java.util.Locale
 
 object PdfManager {
+
     fun generarYCompartirPDF(
         context: Context,
         usuario: Usuario?,
@@ -26,18 +27,16 @@ object PdfManager {
     ) {
         try {
             val document = PdfDocument()
-            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // Tamaño estándar A4
+            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
             val page = document.startPage(pageInfo)
             val canvas: Canvas = page.canvas
             val paint = Paint()
 
-            // 1. Cabecera
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             paint.textSize = 28f
-            paint.color = Color.rgb(33, 150, 243) // Azul primario
+            paint.color = Color.rgb(33, 150, 243)
             canvas.drawText("Reporte Clínico - DiaDoc", 50f, 80f, paint)
 
-            // 2. Datos del Paciente
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             paint.textSize = 16f
             paint.color = Color.BLACK
@@ -46,7 +45,6 @@ object PdfManager {
             canvas.drawText("Paciente: $nombre", 50f, 140f, paint)
             canvas.drawText("Fecha de Emisión: $fecha", 50f, 170f, paint)
 
-            // 3. Resumen de Métricas
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             paint.textSize = 20f
             canvas.drawText("Estado de Salud Actual", 50f, 240f, paint)
@@ -60,21 +58,87 @@ object PdfManager {
             canvas.drawText("• Adherencia al tratamiento: $racha días consecutivos", 50f, 310f, paint)
             canvas.drawText("• Hidratación diaria: ${planHoy?.vasosAgua ?: 0} / 8 vasos", 50f, 340f, paint)
 
-            // Pie de página
             paint.textSize = 12f
             paint.color = Color.GRAY
             canvas.drawText("Documento generado automáticamente por el algoritmo de DiaDoc.", 50f, 780f, paint)
 
             document.finishPage(page)
 
-            // 4. Guardar en Caché
             val file = File(context.cacheDir, "Reporte_DiaDoc_${nombre.replace(" ", "_")}.pdf")
             val fos = FileOutputStream(file)
             document.writeTo(fos)
             document.close()
             fos.close()
 
-            // 5. Compartir al Exterior
+            compartirArchivo(context, file)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun generarReporteProgresoPDF(
+        context: Context,
+        fechaDesde: String,
+        fechaHasta: String,
+        promedioGlucosa: Float,
+        adherenciaDieta: Float,
+        adherenciaEjercicio: Float,
+        totalRegistros: Int
+    ) {
+        try {
+            val document = PdfDocument()
+            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+            val page = document.startPage(pageInfo)
+            val canvas: Canvas = page.canvas
+            val paint = Paint()
+
+            // Cabecera
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.textSize = 28f
+            paint.color = Color.rgb(211, 47, 47)
+            canvas.drawText("Reporte de Progreso Analítico", 50f, 80f, paint)
+
+            // Fechas del Reporte
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            paint.textSize = 16f
+            paint.color = Color.BLACK
+            val fechaEmision = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+            canvas.drawText("Fecha de Emisión: $fechaEmision", 50f, 130f, paint)
+            canvas.drawText("Período Analizado: $fechaDesde al $fechaHasta", 50f, 160f, paint)
+
+            // Resumen Biométrico
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.textSize = 20f
+            canvas.drawText("1. Biometría de Glucosa", 50f, 230f, paint)
+
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            paint.textSize = 16f
+            canvas.drawText("• Total de controles registrados: $totalRegistros", 50f, 270f, paint)
+            canvas.drawText("• Promedio en el período: ${promedioGlucosa.toInt()} mg/dL", 50f, 300f, paint)
+
+            // Adherencia al Tratamiento
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.textSize = 20f
+            canvas.drawText("2. Adherencia al Tratamiento", 50f, 370f, paint)
+
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            paint.textSize = 16f
+            canvas.drawText("• Cumplimiento Plan Nutricional: ${(adherenciaDieta * 100).toInt()}%", 50f, 410f, paint)
+            canvas.drawText("• Cumplimiento Rutina Física: ${(adherenciaEjercicio * 100).toInt()}%", 50f, 440f, paint)
+
+            // Pie de página
+            paint.textSize = 12f
+            paint.color = Color.GRAY
+            canvas.drawText("Documento exportado desde DiaDoc. Compartir únicamente con profesionales de salud.", 50f, 780f, paint)
+
+            document.finishPage(page)
+
+            val file = File(context.cacheDir, "Reporte_Historico_DiaDoc.pdf")
+            val fos = FileOutputStream(file)
+            document.writeTo(fos)
+            document.close()
+            fos.close()
+
             compartirArchivo(context, file)
         } catch (e: Exception) {
             e.printStackTrace()

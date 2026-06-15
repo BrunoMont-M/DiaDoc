@@ -33,6 +33,7 @@ import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.example.diadoc.viewmodel.GeneradorRutinaViewModel
+import com.example.diadoc.viewmodel.ReporteProgresoViewModel // NUEVO: Importación US12
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -81,11 +82,12 @@ fun AppNavigation(
                         selected = currentRoute?.startsWith("actividad") == true,
                         onClick = { navController.navigate("actividad/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
                     )
+                    // NUEVO: Botón de Progreso conectado (US12)
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Progreso") },
                         label = { Text("Progreso") },
                         selected = currentRoute?.startsWith("progreso") == true,
-                        onClick = { /* TODO: Pantalla de Progress */ }
+                        onClick = { navController.navigate("progreso/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
                     )
                 }
             }
@@ -148,8 +150,8 @@ fun AppNavigation(
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
                     onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") },
-                    onNavigateToActividad = { navController.navigate("actividad/$uid") }, // Tu función US06
-                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") } // La función US15 de Carlos
+                    onNavigateToActividad = { navController.navigate("actividad/$uid") },
+                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") }
                 )
             }
 
@@ -262,6 +264,16 @@ fun AppNavigation(
                 RegistrarAlimentoScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onScanQrClick = { /* Próximo paso: Integración con la cámara */ }
+                )
+            }
+
+            composable("progreso/{uid}") { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val reporteProgresoViewModel: ReporteProgresoViewModel = viewModel()
+                ReporteProgresoScreen(
+                    viewModel = reporteProgresoViewModel,
+                    uid = uid,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }
