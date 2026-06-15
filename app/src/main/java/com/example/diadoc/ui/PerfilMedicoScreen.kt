@@ -47,14 +47,12 @@ fun PerfilMedicoScreen(
     val patologiasPrevias by viewModel.patologiasPrevias.collectAsState()
     val restriccionesPrevias by viewModel.restriccionesPrevias.collectAsState()
 
-    // Configuración del Swipe-to-Refresh
     val refreshState = rememberPullToRefreshState()
-    val coroutineScope = rememberCoroutineScope()
 
     if (refreshState.isRefreshing) {
         LaunchedEffect(true) {
             viewModel.cargarDatosIniciales(codUsuarioLogueado)
-            delay(500) // Delay visual para que la animación se aprecie
+            delay(500)
             refreshState.endRefresh()
         }
     }
@@ -92,11 +90,34 @@ fun PerfilMedicoScreen(
         }
     }
 
-    LaunchedEffect(patologiasPrevias, restriccionesPrevias) {
-        patologiasSeleccionadas.clear()
-        patologiasSeleccionadas.addAll(patologiasPrevias)
-        restriccionesSeleccionadas.clear()
-        restriccionesSeleccionadas.addAll(restriccionesPrevias)
+    LaunchedEffect(patologiasPrevias, patologias) {
+        if (patologias.isNotEmpty() && patologiasPrevias.isNotEmpty()) {
+            patologiasSeleccionadas.clear()
+            patologiasPrevias.forEach { previo ->
+                val pat = patologias.find { it.nombreEnfermedad == previo || it.codPatologia == previo }
+                if (pat != null) {
+                    patologiasSeleccionadas.add(pat.codPatologia)
+                } else {
+                    checkOtraPatologia = true
+                    nuevaPatologiaTexto = previo
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(restriccionesPrevias, restricciones) {
+        if (restricciones.isNotEmpty() && restriccionesPrevias.isNotEmpty()) {
+            restriccionesSeleccionadas.clear()
+            restriccionesPrevias.forEach { previo ->
+                val res = restricciones.find { it.nombreRestricc == previo || it.codRestricc == previo }
+                if (res != null) {
+                    restriccionesSeleccionadas.add(res.codRestricc)
+                } else {
+                    checkOtraRestriccion = true
+                    nuevaRestriccionTexto = previo
+                }
+            }
+        }
     }
 
     val calendar = Calendar.getInstance()
@@ -136,7 +157,6 @@ fun PerfilMedicoScreen(
             )
         }
     ) { paddingValues ->
-        // Envolvemos el contenido principal en un Box para habilitar el scroll combinado (nestedScroll)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -245,7 +265,6 @@ fun PerfilMedicoScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // CATÁLOGO DINÁMICO: Patologías
                 Text("Patologías Base", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                 if (patologias.isEmpty()) {
                     Text("Cargando opciones o ninguna registrada...", style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
@@ -278,7 +297,6 @@ fun PerfilMedicoScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // CATÁLOGO DINÁMICO: Restricciones
                 Text("Restricciones Alimentarias", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                 if (restricciones.isEmpty()) {
                     Text("Cargando opciones o ninguna registrada...", style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
@@ -350,10 +368,9 @@ fun PerfilMedicoScreen(
                         Text("GUARDAR Y CONTINUAR", fontWeight = FontWeight.Bold)
                     }
                 }
-                Spacer(modifier = Modifier.height(80.dp)) // Espacio final para que la BottomBar no tape el botón
+                Spacer(modifier = Modifier.height(80.dp))
             }
 
-            // Indicador visual del Swipe to Refresh condicionado
             if (refreshState.progress > 0f || refreshState.isRefreshing) {
                 PullToRefreshContainer(
                     state = refreshState,

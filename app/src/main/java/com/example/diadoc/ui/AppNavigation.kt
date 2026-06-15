@@ -30,12 +30,10 @@ import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 import com.example.diadoc.viewmodel.GeneradorPlanViewModel
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
-// FASE US11: Agregamos el import del nuevo ViewModel
 import com.example.diadoc.viewmodel.BitacoraViewModel
-import com.google.firebase.auth.FirebaseAuth
-// FASE US14: Agregamos el import de tu nueva pantalla y su ViewModel
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
-import com.example.diadoc.ui.CatalogoAlimentosScreen
+import com.example.diadoc.viewmodel.GeneradorRutinaViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun AppNavigation(
@@ -77,7 +75,7 @@ fun AppNavigation(
                         icon = { Icon(Icons.Default.DirectionsRun, contentDescription = "Actividad") },
                         label = { Text("Actividad") },
                         selected = currentRoute?.startsWith("actividad") == true,
-                        onClick = { /* TODO: Pantalla de Actividad */ }
+                        onClick = { navController.navigate("actividad/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Progreso") },
@@ -144,7 +142,8 @@ fun AppNavigation(
                     onNavigateToSOS = { /* TODO: Módulo SOS */ },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
-                    onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") } // Enlazamos tu pantalla al botón del Dashboard
+                    onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") },
+                    onNavigateToActividad = { navController.navigate("actividad/$uid") }
                 )
             }
 
@@ -173,6 +172,27 @@ fun AppNavigation(
                 val generadorViewModel: GeneradorPlanViewModel = viewModel()
                 GenerarPlanScreen(
                     viewModel = generadorViewModel,
+                    uid = uid,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("actividad/{uid}") { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val generadorRutinaViewModel: GeneradorRutinaViewModel = viewModel()
+                GeneradorRutinaScreen(
+                    viewModel = generadorRutinaViewModel,
+                    uid = uid,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToEditor = { navController.navigate("editor_rutina/$uid") }
+                )
+            }
+
+            composable("editor_rutina/{uid}") { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val generadorRutinaViewModel: GeneradorRutinaViewModel = viewModel()
+                EditorRutinaScreen(
+                    viewModel = generadorRutinaViewModel,
                     uid = uid,
                     onNavigateBack = { navController.popBackStack() }
                 )

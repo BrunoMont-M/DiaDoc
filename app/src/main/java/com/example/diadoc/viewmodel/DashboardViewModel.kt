@@ -5,12 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.diadoc.BuildConfig
 import com.example.diadoc.model.DetalleDieta
+import com.example.diadoc.model.DetalleRutina
 import com.example.diadoc.model.PlanDiario
 import com.example.diadoc.model.Usuario
 import com.example.diadoc.repository.ControlDiarioRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
+import com.example.diadoc.repository.RutinaRepository
 import com.example.diadoc.repository.UsuarioRepository
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.firebase.firestore.FirebaseFirestore
@@ -30,7 +32,8 @@ class DashboardViewModel(
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
     private val dietaRepository: DietaRepository = DietaRepository(),
-    private val controlRepository: ControlDiarioRepository = ControlDiarioRepository()
+    private val controlRepository: ControlDiarioRepository = ControlDiarioRepository(),
+    private val rutinaRepository: RutinaRepository = RutinaRepository()
 ) : ViewModel() {
 
     private val _usuario = MutableStateFlow<Usuario?>(null)
@@ -53,6 +56,12 @@ class DashboardViewModel(
 
     private val _comidasHoy = MutableStateFlow<List<DetalleDieta>>(emptyList())
     val comidasHoy: StateFlow<List<DetalleDieta>> = _comidasHoy
+
+    private val _ejerciciosHoy = MutableStateFlow<List<DetalleRutina>>(emptyList())
+    val ejerciciosHoy: StateFlow<List<DetalleRutina>> = _ejerciciosHoy
+
+    private val _porcentajeEjercicio = MutableStateFlow(0f)
+    val porcentajeEjercicio: StateFlow<Float> = _porcentajeEjercicio
 
     private val _rachaActual = MutableStateFlow(0)
     val rachaActual: StateFlow<Int> = _rachaActual
@@ -84,6 +93,35 @@ class DashboardViewModel(
             cargarDatosDashboard(uid)
             delay(500)
             _isRefreshing.value = false
+        }
+    }
+
+    fun cargarProgresoEjercicio(uid: String) {
+        viewModelScope.launch {
+            try {
+                val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+                val plan = planRepository.obtenerPlanDeHoy(uid, fechaHoy)
+
+                if (plan != null) {
+                    val rutina = rutinaRepository.obtenerRutinaPorPlan(plan.codPlan)
+                    if (rutina != null) {
+                        val detalles = rutinaRepository.obtenerDetallesDeRutina(rutina.codRutina)
+                        _ejerciciosHoy.value = detalles
+
+                        if (detalles.isNotEmpty()) {
+                            val completados = detalles.count { it.consumido }
+                            _porcentajeEjercicio.value = completados.toFloat() / detalles.size
+                        } else {
+                            _porcentajeEjercicio.value = 0f
+                        }
+                    } else {
+                        _ejerciciosHoy.value = emptyList()
+                        _porcentajeEjercicio.value = 0f
+                    }
+                }
+            } catch (e: Exception) {
+                _porcentajeEjercicio.value = 0f
+            }
         }
     }
 

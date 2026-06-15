@@ -25,7 +25,9 @@ class EjercicioRepository(private val db: FirebaseFirestore = FirebaseFirestore.
     suspend fun obtenerTodosLosEjercicios(): List<Ejercicio> {
         return try {
             val snapshot = db.collection("ejercicios").get().await()
-            snapshot.toObjects(Ejercicio::class.java)
+            snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Ejercicio::class.java)?.copy(codEjercicio = doc.id)
+            }
         } catch (e: Exception) {
             emptyList()
         }

@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.diadoc.model.Ejercicio
+import com.example.diadoc.repository.EjercicioRepository
 import com.example.diadoc.utils.PdfManager
 import com.example.diadoc.viewmodel.DashboardViewModel
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -46,7 +48,8 @@ fun DashboardScreen(
     onNavigateToSOS: () -> Unit,
     onNavigateToGenerador: () -> Unit,
     onNavigateToBitacora: () -> Unit,
-    onNavigateToCatalogo: () -> Unit // Agregamos la acción para la US14
+    onNavigateToCatalogo: () -> Unit,
+    onNavigateToActividad: () -> Unit
 ) {
     val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
@@ -56,6 +59,10 @@ fun DashboardScreen(
     val metricaDinamica by viewModel.metricaDinamica.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val comidasHoy by viewModel.comidasHoy.collectAsState()
+
+    val ejerciciosHoy by viewModel.ejerciciosHoy.collectAsState()
+    val porcentajeEjercicio by viewModel.porcentajeEjercicio.collectAsState()
+    val catalogoEjercicios = remember { mutableStateListOf<Ejercicio>() }
 
     val rachaActual by viewModel.rachaActual.collectAsState()
     val tipDelDia by viewModel.tipDelDia.collectAsState()
@@ -67,13 +74,21 @@ fun DashboardScreen(
 
     val refreshState = rememberPullToRefreshState()
     if (refreshState.isRefreshing) {
-        LaunchedEffect(true) { viewModel.refrescarPantalla(uid) }
+        LaunchedEffect(true) {
+            viewModel.refrescarPantalla(uid)
+            viewModel.cargarProgresoEjercicio(uid)
+        }
     }
     LaunchedEffect(isRefreshing) {
         if (!isRefreshing) refreshState.endRefresh()
     }
 
-    LaunchedEffect(uid) { viewModel.cargarUsuario(uid) }
+    LaunchedEffect(uid) {
+        viewModel.cargarUsuario(uid)
+        viewModel.cargarProgresoEjercicio(uid)
+        catalogoEjercicios.clear()
+        catalogoEjercicios.addAll(EjercicioRepository().obtenerTodosLosEjercicios())
+    }
 
     var agendaExpanded by remember { mutableStateOf(true) }
     var infoPopupType by remember { mutableStateOf<String?>(null) }
@@ -176,7 +191,7 @@ fun DashboardScreen(
                     )
                     FilterChip(
                         selected = false,
-                        onClick = { /* TODO: Check-in Actividad */ },
+                        onClick = onNavigateToActividad,
                         label = { Text("Entrené Hoy") },
                         leadingIcon = { Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color(0xFF66BB6A)) },
                         shape = RoundedCornerShape(16.dp)
@@ -264,9 +279,10 @@ fun DashboardScreen(
                                 onClick = { infoPopupType = "DIETA" }
                             )
                             AnilloProgreso(
-                                progreso = if (planHoy != null) 0.8f else 0f,
+                                progreso = porcentajeEjercicio,
                                 color = Color(0xFFFFA726), icono = Icons.Default.DirectionsRun,
-                                texto = "Ejercicio", onClick = { infoPopupType = "EJERCICIO" }
+                                texto = "${(porcentajeEjercicio * 100).toInt()}% Ejercicio",
+                                onClick = { infoPopupType = "EJERCICIO" }
                             )
                             AnilloProgreso(
                                 progreso = (vasosAgua / 8f).coerceIn(0f, 1f),
@@ -305,7 +321,6 @@ fun DashboardScreen(
                     }
                 }
 
-                // NUESTRO BOTÓN TEMPORAL DE PRUEBAS PARA LA US14
                 Button(
                     onClick = onNavigateToCatalogo,
                     modifier = Modifier
@@ -415,12 +430,29 @@ fun DashboardScreen(
                                 }
                             }
                             "EJERCICIO" -> {
-                                Text("Módulo de rutinas en construcción.", fontSize = 14.sp, color = Color.Gray)
+                                Text("Rutina sugerida de hoy:", fontSize = 14.sp, color = Color.Gray)
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Rutina Diaria (Pendiente)", fontSize = 14.sp, color = Color.Gray)
+                                if (ejerciciosHoy.isEmpty()) {
+                                    Text("Aún no tienes rutina generada.", fontStyle = FontStyle.Italic, fontSize = 14.sp)
+                                } else {
+                                    ejerciciosHoy.forEach { detalle ->
+                                        val ej = catalogoEjercicios.find { it.codEjercicio == detalle.codEjercicio }
+                                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
+                                            Icon(if (detalle.consumido) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = if (detalle.consumido) Color(0xFFFFA726) else Color.Gray, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(ej?.nombreEjercicio ?: "Cargando...", fontSize = 14.sp)
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        infoPopupType = null
+                                        onNavigateToActividad()
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Ir a Mi Entrenamiento")
                                 }
                             }
                         }
