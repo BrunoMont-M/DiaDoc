@@ -16,9 +16,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,8 +35,9 @@ import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.example.diadoc.viewmodel.GeneradorRutinaViewModel
-import com.example.diadoc.viewmodel.ReporteProgresoViewModel // NUEVO: Importación US12
+import com.example.diadoc.viewmodel.ReporteProgresoViewModel
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 
 @Composable
 fun AppNavigation(
@@ -44,7 +47,8 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
     val usuarioActual = FirebaseAuth.getInstance().currentUser
-    val destinoInicial = if (usuarioActual != null) "verificador_sesion" else "login"
+
+    val destinoInicial = if (usuarioActual != null) "verificador_inicio" else "login"
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -52,9 +56,7 @@ fun AppNavigation(
     val showBottomBar = currentRoute != null &&
             !currentRoute.startsWith("login") &&
             !currentRoute.startsWith("register") &&
-            !currentRoute.startsWith("verificador_sesion")
-
-    val uidGlobal = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            !currentRoute.startsWith("verificador_")
 
     Scaffold(
         bottomBar = {
@@ -64,30 +66,37 @@ fun AppNavigation(
                         icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
                         label = { Text("Inicio") },
                         selected = currentRoute?.startsWith("dashboard") == true,
-                        onClick = { navController.navigate("dashboard/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
+                        onClick = {
+                            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                            navController.navigate("dashboard/$uid") { popUpTo("dashboard/$uid") { inclusive = false } }
+                        }
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.Restaurant, contentDescription = "Nutrición") },
                         label = { Text("Nutrición") },
                         selected = currentRoute == "menu_nutricion" || currentRoute == "registrar_alimento" || currentRoute == "crear_receta",
                         onClick = {
-                            navController.navigate("menu_nutricion") {
-                                popUpTo("dashboard/$uidGlobal") { inclusive = false }
-                            }
+                            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                            navController.navigate("menu_nutricion") { popUpTo("dashboard/$uid") { inclusive = false } }
                         }
                     )
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.DirectionsRun, contentDescription = "Actividad") },
                         label = { Text("Actividad") },
                         selected = currentRoute?.startsWith("actividad") == true,
-                        onClick = { navController.navigate("actividad/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
+                        onClick = {
+                            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                            navController.navigate("actividad/$uid") { popUpTo("dashboard/$uid") { inclusive = false } }
+                        }
                     )
-                    // NUEVO: Botón de Progreso conectado (US12)
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.TrendingUp, contentDescription = "Progreso") },
                         label = { Text("Progreso") },
                         selected = currentRoute?.startsWith("progreso") == true,
-                        onClick = { navController.navigate("progreso/$uidGlobal") { popUpTo("dashboard/$uidGlobal") { inclusive = false } } }
+                        onClick = {
+                            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                            navController.navigate("progreso/$uid") { popUpTo("dashboard/$uid") { inclusive = false } }
+                        }
                     )
                 }
             }
@@ -98,14 +107,48 @@ fun AppNavigation(
             startDestination = destinoInicial,
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable("verificador_sesion") {
+
+            composable("verificador_inicio") {
                 val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 LaunchedEffect(Unit) {
-                    val existe = perfilViewModel.perfilExiste(uid)
-                    if (existe) {
-                        navController.navigate("dashboard/$uid") { popUpTo(0) }
+                    if (uid.isNotEmpty()) {
+                        val codRol = perfilViewModel.obtenerCodRol(uid)
+                        if (codRol == 2) {
+                            navController.navigate("dashboard/$uid") { popUpTo("verificador_inicio") { inclusive = true } }
+                        } else {
+                            val existe = perfilViewModel.perfilExiste(uid)
+                            if (existe) {
+                                navController.navigate("dashboard/$uid") { popUpTo("verificador_inicio") { inclusive = true } }
+                            } else {
+                                navController.navigate("perfil_medico/$uid") { popUpTo("verificador_inicio") { inclusive = true } }
+                            }
+                        }
                     } else {
-                        navController.navigate("perfil_medico/$uid") { popUpTo(0) }
+                        navController.navigate("login") { popUpTo("verificador_inicio") { inclusive = true } }
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            composable("verificador_login/{uid}") { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                LaunchedEffect(Unit) {
+                    if (uid.isNotEmpty()) {
+                        delay(600)
+
+                        val codRol = perfilViewModel.obtenerCodRol(uid)
+                        if (codRol == 2) {
+                            navController.navigate("dashboard/$uid") { popUpTo("login") { inclusive = true } }
+                        } else {
+                            val existe = perfilViewModel.perfilExiste(uid)
+                            if (existe) {
+                                navController.navigate("dashboard/$uid") { popUpTo("login") { inclusive = true } }
+                            } else {
+                                navController.navigate("perfil_medico/$uid") { popUpTo("login") { inclusive = true } }
+                            }
+                        }
                     }
                 }
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -117,7 +160,9 @@ fun AppNavigation(
                 LoginScreen(
                     viewModel = authViewModel,
                     onNavigateToRegister = { navController.navigate("register") },
-                    onNavigateToPerfil = { navController.navigate("verificador_sesion") { popUpTo(0) } }
+                    onNavigateToPerfil = { uidDevuelto ->
+                        navController.navigate("verificador_login/$uidDevuelto") { popUpTo(0) }
+                    }
                 )
             }
 
@@ -125,7 +170,10 @@ fun AppNavigation(
                 RegisterScreen(
                     viewModel = authViewModel,
                     onBackToLogin = { navController.popBackStack() },
-                    onNavigateToPerfil = { navController.navigate("verificador_sesion") { popUpTo(0) } }
+                    onNavigateToPerfil = {
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        navController.navigate("verificador_login/$uid") { popUpTo(0) }
+                    }
                 )
             }
 
@@ -149,9 +197,7 @@ fun AppNavigation(
                     onNavigateToSOS = { navController.navigate("dashboard_sos") },
                     onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
-                    onNavigateToCatalogo = { navController.navigate("catalogo_alimentos") },
-                    onNavigateToActividad = { navController.navigate("actividad/$uid") },
-                    onNavigateToEjercicios = { navController.navigate("catalogo_ejercicios") }
+                    onNavigateToActividad = { navController.navigate("actividad/$uid") }
                 )
             }
 
@@ -167,11 +213,26 @@ fun AppNavigation(
 
             composable("ajustes/{uid}") { backStackEntry ->
                 val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val usuarioLogueado by dashboardViewModel.usuario.collectAsState()
+                val esUsuarioAdmin = usuarioLogueado?.codRol == 2
+
                 AjustesScreen(
                     uid = uid,
+                    isAdmin = esUsuarioAdmin,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToContactos = { navController.navigate("contactos/$uid") },
-                    onNavigateToPerfil = { navController.navigate("perfil_medico/$uid") }
+                    onNavigateToPerfil = { navController.navigate("perfil_medico/$uid") },
+                    onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") },
+                    onNavigateToCatalogoEjercicios = { navController.navigate("catalogo_ejercicios") },
+                    onLogOut = {
+                        dashboardViewModel.limpiarDatos()
+                        perfilViewModel.limpiarDatos()
+
+                        FirebaseAuth.getInstance().signOut()
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
                 )
             }
 
@@ -248,8 +309,23 @@ fun AppNavigation(
 
             composable("menu_nutricion") {
                 NutricionMenuScreen(
+                    onNavigateToPlanNutricional = {
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        navController.navigate("plan_nutricional/$uid")
+                    },
                     onNavigateToRegistrarAlimento = { navController.navigate("registrar_alimento") },
-                    onNavigateToCrearReceta = { navController.navigate("crear_receta") }
+                    onNavigateToCrearReceta = { navController.navigate("crear_receta") },
+                    onNavigateToRecetario = { navController.navigate("recetario") }
+                )
+            }
+
+            composable("recetario") {
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val recetarioViewModel: com.example.diadoc.viewmodel.RecetarioViewModel = viewModel()
+                RecetarioScreen(
+                    uid = uid,
+                    viewModel = recetarioViewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

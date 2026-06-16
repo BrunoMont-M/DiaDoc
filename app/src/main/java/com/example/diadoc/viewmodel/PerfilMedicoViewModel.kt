@@ -48,7 +48,7 @@ class PerfilMedicoViewModel(
             _usuario.value = usuarioRepository.obtenerUsuario(codUsuario)
             _patologias.value = patologiaRepository.obtenerTodasLasPatologias()
             _restricciones.value = restriccionRepository.obtenerTodasLasRestricciones()
-            
+
             val perfil = perfilRepository.obtenerPerfilPorUsuario(codUsuario)
             _perfilExistente.value = perfil
 
@@ -102,5 +102,17 @@ class PerfilMedicoViewModel(
         return perfilRepository.obtenerPerfilPorUsuario(codUsuario) != null
     }
 
+    suspend fun obtenerCodRol(codUsuario: String): Int {
+        return usuarioRepository.obtenerUsuario(codUsuario)?.codRol ?: 1
+    }
+
     fun resetSaveState() { _saveState.value = null }
+
+    fun limpiarDatos() {
+        _usuario.value = null
+        _perfilExistente.value = null
+        _patologiasPrevias.value = emptyList()
+        _restriccionesPrevias.value = emptyList()
+        _saveState.value = null
+    }
 }

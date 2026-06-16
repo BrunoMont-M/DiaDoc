@@ -48,9 +48,7 @@ fun DashboardScreen(
     onNavigateToSOS: () -> Unit,
     onNavigateToGenerador: () -> Unit,
     onNavigateToBitacora: () -> Unit,
-    onNavigateToCatalogo: () -> Unit,
-    onNavigateToActividad: () -> Unit,
-    onNavigateToEjercicios: () -> Unit
+    onNavigateToActividad: () -> Unit
 ) {
     val context = LocalContext.current
     val usuario by viewModel.usuario.collectAsState()
@@ -94,7 +92,6 @@ fun DashboardScreen(
     var agendaExpanded by remember { mutableStateOf(true) }
     var infoPopupType by remember { mutableStateOf<String?>(null) }
 
-    // DETECTA EL SCROLL PARA AGRANDAR/ACHICAR EL BOTÓN
     val scrollState = rememberScrollState()
     var lastScrollOffset by remember { mutableStateOf(0) }
     var isFabExpanded by remember { mutableStateOf(true) }
@@ -322,28 +319,6 @@ fun DashboardScreen(
                         }
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Ir a Bitácora", tint = MaterialTheme.colorScheme.tertiary)
                     }
-                }
-
-                Button(
-                    onClick = onNavigateToCatalogo,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.RestaurantMenu, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Probar Catálogo Alimentos (Admin)", fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = onNavigateToEjercicios,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A3E0)),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.FitnessCenter, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Probar Catálogo Ejercicios (Admin)", fontWeight = FontWeight.Bold)
                 }
 
                 ElevatedCard(

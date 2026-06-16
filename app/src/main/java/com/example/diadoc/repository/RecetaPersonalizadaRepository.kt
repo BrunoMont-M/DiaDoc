@@ -2,6 +2,7 @@ package com.example.diadoc.repository
 
 import com.example.diadoc.model.RecetaPersonalizada
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 
 class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
@@ -22,16 +23,36 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
         }
     }
 
-    suspend fun obtenerRecetasPorUsuario(idUsuario: String): List<RecetaPersonalizada> {
+    suspend fun obtenerRecetas(codUsuario: String, tipoComida: String? = null): List<RecetaPersonalizada> {
         return try {
-            val snapshot = db.collection("recetasPersonalizadas")
-                .whereEqualTo("idUsuario", idUsuario)
+            var query: Query = db.collection("recetasPersonalizadas")
+                .whereEqualTo("codUsuario", codUsuario)
+
+            if (tipoComida != null && tipoComida != "Todas") {
+                query = query.whereEqualTo("tipoComida", tipoComida)
+            }
+
+            val snapshot = query
+                .orderBy("esFavorita", Query.Direction.DESCENDING)
+                .orderBy("nombreReceta", Query.Direction.ASCENDING)
                 .get()
                 .await()
 
             snapshot.toObjects(RecetaPersonalizada::class.java)
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun alternarFavorito(codReceta: String, estadoActual: Boolean): Boolean {
+        return try {
+            db.collection("recetasPersonalizadas")
+                .document(codReceta)
+                .update("esFavorita", !estadoActual)
+                .await()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }

@@ -2,10 +2,14 @@ package com.example.diadoc.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Blender
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,8 +23,10 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NutricionMenuScreen(
+    onNavigateToPlanNutricional: () -> Unit,
     onNavigateToRegistrarAlimento: () -> Unit,
-    onNavigateToCrearReceta: () -> Unit
+    onNavigateToCrearReceta: () -> Unit,
+    onNavigateToRecetario: () -> Unit
 ) {
     val backgroundColor = Color(0xFF121214)
     val cardColor = Color(0xFF1E1E24)
@@ -42,19 +48,51 @@ fun NutricionMenuScreen(
                 .fillMaxSize()
                 .background(backgroundColor)
                 .padding(paddingValues)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "¿Qué deseas hacer hoy?",
                 color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 32.dp)
+                modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Tarjeta Opción 1: Registrar Alimento (US9)
+            // Tarjeta Principal: Plan Nutricional de Hoy
+            Card(
+                onClick = onNavigateToPlanNutricional,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = primaryColor.copy(alpha = 0.15f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RestaurantMenu,
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text("Mi Plan Nutricional", color = primaryColor, fontSize = 18.sp, fontWeight = FontWeight.Black)
+                        Text("Revisar tus comidas y check-in del día.", color = Color.LightGray, fontSize = 14.sp)
+                    }
+                }
+            }
+
+            Divider(color = Color.DarkGray, modifier = Modifier.padding(bottom = 16.dp))
+
+            // Tarjeta Opción 1: Registrar Alimento
             Card(
                 onClick = onNavigateToRegistrarAlimento,
                 modifier = Modifier
@@ -83,10 +121,12 @@ fun NutricionMenuScreen(
                 }
             }
 
-            // Tarjeta Opción 2: Crear Receta (US10)
+            // Tarjeta Opción 2: Crear Receta
             Card(
                 onClick = onNavigateToCrearReceta,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor)
             ) {
@@ -109,6 +149,35 @@ fun NutricionMenuScreen(
                     }
                 }
             }
+
+            // Tarjeta Opción 3: Recetario
+            Card(
+                onClick = onNavigateToRecetario,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cardColor)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text("Recetario Global", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Explora todas las recetas generadas por IA y creadas por ti.", color = Color.Gray, fontSize = 14.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

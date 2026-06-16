@@ -3,6 +3,7 @@ package com.example.diadoc.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -20,9 +21,13 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun AjustesScreen(
     uid: String,
+    isAdmin: Boolean,
     onNavigateBack: () -> Unit,
     onNavigateToContactos: () -> Unit,
-    onNavigateToPerfil: () -> Unit
+    onNavigateToPerfil: () -> Unit,
+    onNavigateToCatalogoAlimentos: () -> Unit,
+    onNavigateToCatalogoEjercicios: () -> Unit,
+    onLogOut: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -57,7 +62,7 @@ fun AjustesScreen(
                 onClick = { /* TODO: Pantalla de Privacidad */ }
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Salud y tratamiento
             CategoriaAjustes(titulo = "Salud y Tratamiento")
@@ -80,7 +85,7 @@ fun AjustesScreen(
                 onClick = { /* TODO: Pantalla de Unidades */ }
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Preferencias de la App
             CategoriaAjustes(titulo = "Preferencias de la Aplicación")
@@ -97,8 +102,27 @@ fun AjustesScreen(
                 onClick = { /* TODO: Pantalla de Notificaciones */ }
             )
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            // 🚨 RBAC: Solo se dibuja si el usuario es Admin
+            if (isAdmin) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                CategoriaAjustes(titulo = "Opciones de Administrador")
+                ItemAjuste(
+                    icono = Icons.Default.RestaurantMenu,
+                    titulo = "Catálogo de Alimentos",
+                    subtitulo = "Gestión de BD (Admin)",
+                    onClick = onNavigateToCatalogoAlimentos
+                )
+                ItemAjuste(
+                    icono = Icons.Default.FitnessCenter,
+                    titulo = "Catálogo de Ejercicios",
+                    subtitulo = "Gestión de BD (Admin)",
+                    onClick = onNavigateToCatalogoEjercicios
+                )
+            }
 
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Acerca de
             CategoriaAjustes(titulo = "Acerca de")
             ItemAjuste(
                 icono = Icons.Default.SupportAgent,
@@ -112,6 +136,22 @@ fun AjustesScreen(
                 subtitulo = "DiaDoc v1.0.0 (Build 14)",
                 onClick = { }
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botón de Cerrar Sesión
+            Button(
+                onClick = onLogOut,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Logout, contentDescription = "Cerrar Sesión", tint = Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("CERRAR SESIÓN", fontWeight = FontWeight.Bold, color = Color.White)
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
         }

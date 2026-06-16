@@ -325,4 +325,23 @@ class DashboardViewModel(
             }
         }
     }
+
+    // Limpieza de RAM
+    fun limpiarDatos() {
+        _usuario.value = null
+        _patologias.value = ""
+        _planHoy.value = null
+        _vasosAgua.value = 0
+        _isRefreshing.value = false
+        _metricaDinamica.value = listOf("Cargando...", "0", "", "")
+        _comidasHoy.value = emptyList()
+        _ejerciciosHoy.value = emptyList()
+        _porcentajeEjercicio.value = 0f
+        _rachaActual.value = 0
+        _tipDelDia.value = null
+        _historialMetricas.value = emptyList()
+        _alertaContextual.value = null
+        _comparativaSemanal.value = ""
+        tipsMensualesCache = emptyList()
+    }
 }
