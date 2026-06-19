@@ -2,21 +2,19 @@ package com.example.diadoc.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.diadoc.model.Alimento
 import com.example.diadoc.repository.CatalogoAlimentosRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// Si el proyecto usa algún modelo de datos específico como "Alimento", acordate de importarlo si te lo pide.
-
 class CatalogoAlimentosViewModel(
     private val repository: CatalogoAlimentosRepository = CatalogoAlimentosRepository()
 ) : ViewModel() {
 
-    // Estado para manejar la lista que viene de Firebase (por ahora vacía como simulación)
-    private val _alimentos = MutableStateFlow<List<String>>(emptyList())
-    val alimentos: StateFlow<List<String>> = _alimentos.asStateFlow()
+    private val _alimentos = MutableStateFlow<List<Alimento>>(emptyList())
+    val alimentos: StateFlow<List<Alimento>> = _alimentos.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -29,26 +27,14 @@ class CatalogoAlimentosViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Ponemos estos tres de prueba locales para testear el diseño fluyendo desde el ViewModel
-                _alimentos.value = listOf("Manzana Verde", "Galletas de Arroz", "Yogur Natural")
+                // Llama al método suspendido del repositorio real
+                val listaDesdeFirebase = repository.buscarAlimentos("")
+                _alimentos.value = listaDesdeFirebase
             } catch (e: Exception) {
-                // Manejo de errores
+                _alimentos.value = emptyList()
             } finally {
                 _isLoading.value = false
             }
-        }
-    }
-
-    // Funciones preparadas para el ABM (US 14)
-    fun agregarAlimento(nombre: String, carbohidratos: Double, calorias: Double, porcion: String) {
-        viewModelScope.launch {
-            // repository.agregarAlimento(...)
-        }
-    }
-
-    fun eliminarAlimento(idAlimento: String) {
-        viewModelScope.launch {
-            // repository.eliminarAlimento(idAlimento)
         }
     }
 }

@@ -43,7 +43,8 @@ import kotlinx.coroutines.delay
 fun AppNavigation(
     authViewModel: AuthViewModel,
     perfilViewModel: PerfilMedicoViewModel,
-    dashboardViewModel: DashboardViewModel
+    dashboardViewModel: DashboardViewModel,
+    catalogoViewModel: CatalogoAlimentosViewModel // <-- Agregado acá arriba de forma segura
 ) {
     val navController = rememberNavController()
     val usuarioActual = FirebaseAuth.getInstance().currentUser
@@ -288,7 +289,7 @@ fun AppNavigation(
             }
 
             composable("catalogo_alimentos") {
-                val catalogoViewModel: CatalogoAlimentosViewModel = viewModel()
+                // Se removió el viewModel() local problemático y se usa el del Scaffold superior
                 CatalogoAlimentosScreen(
                     viewModel = catalogoViewModel,
                     onBackClick = { navController.popBackStack() }
@@ -304,7 +305,8 @@ fun AppNavigation(
             }
 
             composable("dashboard_sos") {
-                DashboardSosScreen()
+                val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                DashboardSosScreen(uid = currentUserUid)
             }
 
             composable("menu_nutricion") {

@@ -31,36 +31,11 @@ fun CatalogoEjerciciosScreen(
 ) {
     val context = LocalContext.current
 
-    // Lista interactiva con videos públicos y disponibles en nuestra región
-    var listaEjercicios by remember {
-        mutableStateOf(
-            listOf(
-                Ejercicio(
-                    codEjercicio = "1",
-                    nombreEjercicio = "Sentadillas libres",
-                    impactoMuscular = "Alto",
-                    grupoMuscular = "Piernas",
-                    descripcion = "Flexión de rodillas a 90° manteniendo la espalda recta y pies alineados con los hombros.",
-                    urlVideoTutorial = "https://www.youtube.com/watch?v=QA474C7A_Sg"
-                ),
-                Ejercicio(
-                    codEjercicio = "2",
-                    nombreEjercicio = "Press de Banca",
-                    impactoMuscular = "Medio",
-                    grupoMuscular = "Pecho",
-                    descripcion = "Empuje horizontal con barra apoyando firmemente la espalda alta en el banco plano.",
-                    urlVideoTutorial = "https://www.youtube.com/watch?v=ac0gIunE7p0"
-                ),
-                Ejercicio(
-                    codEjercicio = "3",
-                    nombreEjercicio = "Curls de Bíceps",
-                    impactoMuscular = "Bajo",
-                    grupoMuscular = "Brazos",
-                    descripcion = "Flexión controlada de codos con mancuernas evitando balanceos con la zona lumbar.",
-                    urlVideoTutorial = "https://www.youtube.com/watch?v=i9Yf6A8scP0"
-                )
-            )
-        )
+    val listaEjercicios by viewModel.ejercicios.collectAsState(initial = emptyList())
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.cargarEjercicios()
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
@@ -108,59 +83,78 @@ fun CatalogoEjerciciosScreen(
         },
         containerColor = backgroundColor
     ) { paddingValues ->
-        Column(modifier = Modifier.fillMaxSize().padding(paddingValues).padding(16.dp)) {
-            Text("Gestión Maestro de Ejercicios (Admin)", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(bottom = 16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = primaryBlue
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    Text("Gestión Maestro de Ejercicios (Admin)", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(bottom = 16.dp))
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
-                items(listaEjercicios) { ejercicio ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardColor)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(ejercicio.nombreEjercicio, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                if (ejercicio.descripcion.isNotBlank()) {
-                                    Text(ejercicio.descripcion, color = Color.LightGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 4.dp))
-                                }
-                                Text("Grupo: ${ejercicio.grupoMuscular} | Impacto: ${ejercicio.impactoMuscular}", color = Color.Gray, fontSize = 12.sp)
-
-                                if (ejercicio.urlVideoTutorial.isNotBlank()) {
-                                    Text(
-                                        text = "Ver Video Tutorial ↗",
-                                        color = primaryBlue,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        textDecoration = TextDecoration.Underline,
-                                        modifier = Modifier
-                                            .padding(top = 8.dp)
-                                            .clickable {
-                                                try {
-                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ejercicio.urlVideoTutorial)).apply {
-                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                    }
-                                                    context.startActivity(intent)
-                                                } catch (_: Exception) {}
+                    if (listaEjercicios.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No hay ejercicios en el catálogo maestro", color = Color.Gray, fontSize = 16.sp)
+                        }
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
+                            items(listaEjercicios) { ejercicio ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(ejercicio.nombreEjercicio, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                            if (ejercicio.descripcion.isNotBlank()) {
+                                                Text(ejercicio.descripcion, color = Color.LightGray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 4.dp))
                                             }
-                                    )
-                                }
-                            }
+                                            Text("Grupo: ${ejercicio.grupoMuscular} | Impacto: ${ejercicio.impactoMuscular}", color = Color.Gray, fontSize = 12.sp)
 
-                            TextButton(onClick = {
-                                ejercicioSeleccionado = ejercicio
-                                nombreInput = ejercicio.nombreEjercicio
-                                impactoInput = ejercicio.impactoMuscular
-                                grupoInput = ejercicio.grupoMuscular
-                                descripcionInput = ejercicio.descripcion
-                                urlInput = ejercicio.urlVideoTutorial
-                                showEditDialog = true
-                            }) {
-                                Text("Editar", color = primaryBlue, fontWeight = FontWeight.Bold)
+                                            if (ejercicio.urlVideoTutorial.isNotBlank()) {
+                                                Text(
+                                                    text = "Ver Video Tutorial ↗",
+                                                    color = primaryBlue,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    textDecoration = TextDecoration.Underline,
+                                                    modifier = Modifier
+                                                        .padding(top = 8.dp)
+                                                        .clickable {
+                                                            try {
+                                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ejercicio.urlVideoTutorial)).apply {
+                                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                                }
+                                                                context.startActivity(intent)
+                                                            } catch (_: Exception) {}
+                                                        }
+                                                )
+                                            }
+                                        }
+
+                                        TextButton(onClick = {
+                                            ejercicioSeleccionado = ejercicio
+                                            nombreInput = ejercicio.nombreEjercicio
+                                            impactoInput = ejercicio.impactoMuscular
+                                            grupoInput = ejercicio.grupoMuscular
+                                            descripcionInput = ejercicio.descripcion
+                                            urlInput = ejercicio.urlVideoTutorial
+                                            showEditDialog = true
+                                        }) {
+                                            Text("Editar", color = primaryBlue, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -185,14 +179,15 @@ fun CatalogoEjerciciosScreen(
             confirmButton = {
                 Button(onClick = {
                     if (nombreInput.isNotBlank()) {
-                        listaEjercicios = listaEjercicios + Ejercicio(
-                            codEjercicio = System.currentTimeMillis().toString(),
+                        val nuevoEjercicio = Ejercicio(
+                            codEjercicio = "",
                             nombreEjercicio = nombreInput,
                             impactoMuscular = impactoInput,
                             grupoMuscular = grupoInput,
                             descripcion = descripcionInput,
                             urlVideoTutorial = urlInput
                         )
+                        viewModel.guardarOActualizarEjercicio(nuevoEjercicio)
                     }
                     showAddDialog = false
                 }) { Text("Guardar") }
@@ -222,7 +217,9 @@ fun CatalogoEjerciciosScreen(
                 ) {
                     TextButton(
                         onClick = {
-                            listaEjercicios = listaEjercicios.filter { it.codEjercicio != ejercicioSeleccionado?.codEjercicio }
+                            ejercicioSeleccionado?.let {
+                                viewModel.eliminarEjercicio(it.codEjercicio)
+                            }
                             showEditDialog = false
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
@@ -233,16 +230,15 @@ fun CatalogoEjerciciosScreen(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Button(onClick = {
-                        listaEjercicios = listaEjercicios.map {
-                            if (it.codEjercicio == ejercicioSeleccionado?.codEjercicio) {
-                                it.copy(
-                                    nombreEjercicio = nombreInput,
-                                    impactoMuscular = impactoInput,
-                                    grupoMuscular = grupoInput,
-                                    descripcion = descripcionInput,
-                                    urlVideoTutorial = urlInput
-                                )
-                            } else it
+                        val ejercicioModificado = ejercicioSeleccionado?.copy(
+                            nombreEjercicio = nombreInput,
+                            impactoMuscular = impactoInput,
+                            grupoMuscular = grupoInput,
+                            descripcion = descripcionInput,
+                            urlVideoTutorial = urlInput
+                        )
+                        if (ejercicioModificado != null) {
+                            viewModel.guardarOActualizarEjercicio(ejercicioModificado)
                         }
                         showEditDialog = false
                     }) {

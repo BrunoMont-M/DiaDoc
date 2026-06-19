@@ -44,7 +44,6 @@ import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,7 +138,8 @@ fun PlanNutricionalScreen(
                     ) {
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        val totalKcal = menuCompleto.values.flatten().sumOf { it.kcalBase }
+                        // Sumatoria explícita para Doubles mapeados
+                        val totalKcal: Double = menuCompleto.values.flatten().sumOf { alim: Alimento -> alim.kcalBase }
                         ElevatedCard(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                             colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
@@ -260,7 +260,7 @@ fun EditorDietaContenido(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("• ${alim.nombreAlimento}", modifier = Modifier.weight(1f), fontSize = 14.sp)
-                        Text("${alim.kcalBase} kcal", color = Color.Gray, fontSize = 14.sp)
+                        Text("${alim.kcalBase.toInt()} kcal", color = Color.Gray, fontSize = 14.sp)
                         IconButton(onClick = { viewModel.eliminarAlimento(codDieta, uid, detalle.codDetDieta, alim.codAlimento) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                         }
@@ -279,7 +279,9 @@ fun EditorDietaContenido(
             label = { Text("Buscar en catálogo...") },
             modifier = Modifier
                 .fillMaxWidth()
-                .onFocusChanged { isSearchFocused = it.isFocused },
+                .onFocusChanged { focusState ->
+                    isSearchFocused = focusState.isFocused
+                }, // CORRECCIÓN CLAVE: onFocusChanged correctamente enganchado en el Modifier
             singleLine = true,
             trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(12.dp)
@@ -288,8 +290,8 @@ fun EditorDietaContenido(
         Spacer(modifier = Modifier.height(8.dp))
 
         if (isSearchFocused || searchQuery.isNotEmpty()) {
-            LazyColumn(modifier = Modifier.weight(1f)) { // Ocupa todo el espacio hasta el teclado
-                items(resultados) { alim ->
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(resultados, key = { it.codAlimento }) { alim: Alimento ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -306,9 +308,9 @@ fun EditorDietaContenido(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(alim.nombreAlimento, fontWeight = FontWeight.Medium)
-                            Text("Proteínas: ${alim.proteinasBase}g | Carbs: ${alim.carbohidratosBase}g", fontSize = 12.sp, color = Color.Gray)
+                            Text("Proteínas: ${alim.proteinasBase.toInt()}g | Carbs: ${alim.carbohidratosBase.toInt()}g", fontSize = 12.sp, color = Color.Gray)
                         }
-                        Text("${alim.kcalBase} kcal", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
+                        Text("${alim.kcalBase.toInt()} kcal", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
                         Icon(Icons.Default.AddCircle, contentDescription = "Agregar", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -379,7 +381,7 @@ fun TarjetaRecetaInteractiva(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
-                            onClick = onEditClick, // EVENTO ENLAZADO AL BOTÓN DE EDITAR
+                            onClick = onEditClick,
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
@@ -434,7 +436,7 @@ fun TarjetaRecetaInteractiva(
                                 modifier = Modifier.weight(1f).padding(end = 8.dp)
                             )
                             Text(
-                                text = "${alimento.kcalBase} kcal",
+                                text = "${alimento.kcalBase.toInt()} kcal",
                                 color = Color.Gray,
                                 fontSize = 14.sp
                             )

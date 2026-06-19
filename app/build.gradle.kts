@@ -106,4 +106,5 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose:1.14.0")
     implementation("com.patrykandpatrick.vico:compose-m3:1.14.0")
     implementation("com.patrykandpatrick.vico:core:1.14.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 }

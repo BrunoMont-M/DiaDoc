@@ -12,6 +12,7 @@ import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.AuthViewModel
 import com.example.diadoc.viewmodel.DashboardViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
+import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,6 +21,7 @@ class MainActivity : ComponentActivity() {
         val authViewModel = AuthViewModel()
         val perfilViewModel = PerfilMedicoViewModel()
         val dashboardViewModel = DashboardViewModel()
+        val catalogoViewModel = CatalogoAlimentosViewModel() //
 
         setContent {
             DiaDocTheme {
@@ -30,7 +32,8 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         authViewModel = authViewModel,
                         perfilViewModel = perfilViewModel,
-                        dashboardViewModel = dashboardViewModel
+                        dashboardViewModel = dashboardViewModel,
+                        catalogoViewModel = catalogoViewModel
                     )
                 }
             }

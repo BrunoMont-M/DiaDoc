@@ -22,7 +22,8 @@ class DietaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getI
                 batch.set(detalleDoc, detalleGuardar)
 
                 alimentos.forEach { alimento ->
-                    val alimDoc = detalleDoc.collection("alimentos_detalle").document()
+                    // Guardamos usando el ID propio del alimento para mantener consistencia
+                    val alimDoc = detalleDoc.collection("alimentos_detalle").document(alimento.codAlimento.ifEmpty { db.collection("placeholder").document().id })
                     val alimGuardar = alimento.copy(codAlimento = alimDoc.id)
                     batch.set(alimDoc, alimGuardar)
                 }
@@ -41,7 +42,11 @@ class DietaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getI
                 .whereEqualTo("codPlan", codPlan)
                 .get().await()
 
-            if (!snap.isEmpty) snap.documents[0].toObject(Dieta::class.java) else null
+            if (!snap.isEmpty) {
+                snap.documents[0].toObject(Dieta::class.java)?.copy(codDieta = snap.documents[0].id)
+            } else {
+                null
+            }
         } catch (e: Exception) {
             null
         }
@@ -53,10 +58,12 @@ class DietaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getI
             val detallesSnap = db.collection("dietas").document(codDieta).collection("detalles_comidas").get().await()
 
             for (doc in detallesSnap.documents) {
-                val detalle = doc.toObject(DetalleDieta::class.java)
+                val detalle = doc.toObject(DetalleDieta::class.java)?.copy(codDetDieta = doc.id)
                 if (detalle != null) {
                     val alimentosSnap = doc.reference.collection("alimentos_detalle").get().await()
-                    val alimentos = alimentosSnap.toObjects(Alimento::class.java)
+                    val alimentos = alimentosSnap.documents.mapNotNull { alimDoc ->
+                        alimDoc.toObject(Alimento::class.java)?.copy(codAlimento = alimDoc.id)
+                    }
                     menu[detalle] = alimentos
                 }
             }
@@ -87,12 +94,12 @@ class DietaRepository(private val db: FirebaseFirestore = FirebaseFirestore.getI
 
     suspend fun agregarAlimentoAComida(codDieta: String, codDetDieta: String, alimento: Alimento): Boolean {
         return try {
+            // CORRECCIÓN: Usamos el ID real del catálogo maestro para que coincida al eliminarlo
             val docRef = db.collection("dietas").document(codDieta)
                 .collection("detalles_comidas").document(codDetDieta)
-                .collection("alimentos_detalle").document()
+                .collection("alimentos_detalle").document(alimento.codAlimento)
 
-            val alimentoGuardar = alimento.copy(codAlimento = docRef.id)
-            docRef.set(alimentoGuardar).await()
+            docRef.set(alimento).await()
             true
         } catch (e: Exception) { false }
     }
