@@ -6,9 +6,11 @@ import com.example.diadoc.model.Usuario
 import com.example.diadoc.repository.AuthRepository
 import com.example.diadoc.repository.UsuarioRepository
 import com.example.diadoc.utils.Resource
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,18 +40,38 @@ class AuthViewModel(
 
             if (authResult is Resource.Success) {
                 val uid = authResult.data
-                val fechaActual = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
+                val fechaHoraActual = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
 
                 val nuevoUsuario = Usuario(
                     codUsuario = uid,
                     emailUsuario = email,
                     nomYapeUsuario = nombre,
-                    fechaRegistro = fechaActual
+                    fechaRegistro = fechaHoraActual
                 )
                 val guardadoExitoso = usuarioRepository.guardarUsuario(nuevoUsuario)
 
                 if (guardadoExitoso) {
-                    _authState.value = Resource.Success(uid)
+                    try {
+                        val db = FirebaseFirestore.getInstance()
+                        val nuevoDocRef = db.collection("usuarioEstados").document()
+
+                        val nuevoEstado = hashMapOf(
+                            "codUsuarioEstado" to nuevoDocRef.id,
+                            "codUsuario" to uid,
+                            "codEstadoU" to "ESTADO_ACTIVO",
+                            "fechaDesdeUEstado" to fechaHoraActual,
+                            "fechaHastaUEstado" to ""
+                        )
+
+                        nuevoDocRef.set(nuevoEstado).await()
+
+                        _authState.value = Resource.Success(uid)
+                    } catch (e: Exception) {
+                        // Si ocurre un error de red menor al crear el estado, el usuario ya fue creado en Auth y BD.
+                        // Permitimos el éxito para no interrumpir el Onboarding.
+                        _authState.value = Resource.Success(uid)
+                    }
                 } else {
                     _authState.value = Resource.Error("Acceso creado, pero error al guardar perfil.")
                 }

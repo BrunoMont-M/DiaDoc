@@ -226,11 +226,30 @@ fun AppNavigation(
                     onNavigateToPerfil = { navController.navigate("perfil_medico/$uid") },
                     onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") },
                     onNavigateToCatalogoEjercicios = { navController.navigate("catalogo_ejercicios") },
+                    onNavigateToGestionCuenta = { navController.navigate("gestion_cuenta/$uid") },
                     onLogOut = {
                         dashboardViewModel.limpiarDatos()
                         perfilViewModel.limpiarDatos()
 
                         FirebaseAuth.getInstance().signOut()
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable("gestion_cuenta/{uid}") { backStackEntry ->
+                val uid = backStackEntry.arguments?.getString("uid") ?: ""
+                val gestionCuentaViewModel: com.example.diadoc.viewmodel.GestionCuentaViewModel = viewModel()
+
+                GestionCuentaScreen(
+                    viewModel = gestionCuentaViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onAccountDeleted = {
+                        dashboardViewModel.limpiarDatos()
+                        perfilViewModel.limpiarDatos()
+
                         navController.navigate("login") {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }

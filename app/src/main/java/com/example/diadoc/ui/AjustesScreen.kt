@@ -27,6 +27,7 @@ fun AjustesScreen(
     onNavigateToPerfil: () -> Unit,
     onNavigateToCatalogoAlimentos: () -> Unit,
     onNavigateToCatalogoEjercicios: () -> Unit,
+    onNavigateToGestionCuenta: () -> Unit,
     onLogOut: () -> Unit
 ) {
     Scaffold(
@@ -53,7 +54,7 @@ fun AjustesScreen(
                 icono = Icons.Default.Person,
                 titulo = "Gestión de Cuenta",
                 subtitulo = "Contraseña, correo y sesión",
-                onClick = { /* TODO: Pantalla de Cuenta */ }
+                onClick = onNavigateToGestionCuenta
             )
             ItemAjuste(
                 icono = Icons.Default.Lock,
@@ -102,7 +103,7 @@ fun AjustesScreen(
                 onClick = { /* TODO: Pantalla de Notificaciones */ }
             )
 
-            // 🚨 RBAC: Solo se dibuja si el usuario es Admin
+            // Solo se dibuja si el usuario es Admin
             if (isAdmin) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 CategoriaAjustes(titulo = "Opciones de Administrador")
