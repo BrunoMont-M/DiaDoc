@@ -32,13 +32,14 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
                 query = query.whereEqualTo("tipoComida", tipoComida)
             }
 
-            val snapshot = query
-                .orderBy("esFavorita", Query.Direction.DESCENDING)
-                .orderBy("nombreReceta", Query.Direction.ASCENDING)
-                .get()
-                .await()
+            val snapshot = query.get().await()
 
-            snapshot.toObjects(RecetaPersonalizada::class.java)
+            val listaSinOrdenar = snapshot.toObjects(RecetaPersonalizada::class.java)
+
+            listaSinOrdenar.sortedWith(
+                compareByDescending<RecetaPersonalizada> { it.esFavorita }
+                    .thenBy { it.nombreReceta.lowercase() }
+            )
         } catch (e: Exception) {
             emptyList()
         }
@@ -50,6 +51,15 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
                 .document(codReceta)
                 .update("esFavorita", !estadoActual)
                 .await()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun eliminarReceta(codReceta: String): Boolean {
+        return try {
+            db.collection("recetasPersonalizadas").document(codReceta).delete().await()
             true
         } catch (e: Exception) {
             false

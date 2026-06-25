@@ -1,5 +1,6 @@
 package com.example.diadoc.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,18 +10,24 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -42,11 +49,13 @@ fun RecetarioScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val categoriaSeleccionada by viewModel.categoriaSeleccionada.collectAsState()
 
+    var recetaAEliminar by remember { mutableStateOf<RecetaPersonalizada?>(null) }
+
     val backgroundColor = Color(0xFF121214)
     val cardColor = Color(0xFF1E1E24)
     val primaryColor = MaterialTheme.colorScheme.primary
 
-    val categorias = listOf("Todas", "Desayuno", "Almuerzo", "Merienda", "Cena", "Snacks")
+    val categorias = listOf("Todas", "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena", "Personalizada")
 
     LaunchedEffect(uid) {
         viewModel.cargarRecetas(uid)
@@ -158,11 +167,40 @@ fun RecetarioScreen(
                             receta = receta,
                             cardColor = cardColor,
                             primaryColor = primaryColor,
-                            onToggleFavorito = { viewModel.alternarFavorito(receta, uid) }
+                            onToggleFavorito = { viewModel.alternarFavorito(receta, uid) },
+                            onDeleteClick = { recetaAEliminar = receta }
                         )
                     }
                 }
             }
+        }
+
+        if (recetaAEliminar != null) {
+            AlertDialog(
+                onDismissRequest = { recetaAEliminar = null },
+                title = { Text("Eliminar Receta", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
+                text = { Text("¿Estás seguro que deseas eliminar '${recetaAEliminar?.nombreReceta}' de tu recetario global? Esta acción no se puede deshacer.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            recetaAEliminar?.let { viewModel.eliminarReceta(it.codReceta, uid) }
+                            recetaAEliminar = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Sí, eliminar", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { recetaAEliminar = null }) {
+                        Text("Cancelar", color = Color.Gray)
+                    }
+                },
+                icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                containerColor = cardColor,
+                titleContentColor = Color.White,
+                textContentColor = Color.LightGray
+            )
         }
     }
 }
@@ -172,15 +210,25 @@ fun TarjetaRecetaAvanzada(
     receta: RecetaPersonalizada,
     cardColor: Color,
     primaryColor: Color,
-    onToggleFavorito: () -> Unit
+    onToggleFavorito: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val esRecetaIA = receta.origenIA && receta.instruccionesReceta.contains("|||")
+    val partes = if (esRecetaIA) receta.instruccionesReceta.split("|||") else emptyList()
+    val descripcionPreview = if (esRecetaIA) partes.getOrNull(0) ?: "" else receta.instruccionesReceta
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+            .animateContentSize(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Cabecera: Icono, Título y Botón Favorito
+            // Cabecera
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
@@ -207,6 +255,11 @@ fun TarjetaRecetaAvanzada(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+
+                IconButton(onClick = onDeleteClick) {
+                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f))
+                }
+
                 IconButton(onClick = onToggleFavorito) {
                     Icon(
                         imageVector = if (receta.esFavorita) Icons.Default.Star else Icons.Outlined.StarOutline,
@@ -220,19 +273,67 @@ fun TarjetaRecetaAvanzada(
             HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Descripción e Instrucciones
             Text(
-                text = receta.instruccionesReceta.ifEmpty { "Sin instrucciones detalladas." },
+                text = if (esRecetaIA) "\"$descripcionPreview\"" else descripcionPreview.ifEmpty { "Sin instrucciones detalladas." },
+                fontStyle = if (esRecetaIA) FontStyle.Italic else FontStyle.Normal,
                 color = Color.LightGray,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,
-                maxLines = 3,
+                maxLines = if (expanded && !esRecetaIA) Int.MAX_VALUE else if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis
             )
 
+            if (expanded && esRecetaIA) {
+                val ingredientesStr = partes.getOrNull(1) ?: ""
+                val pasosStr = partes.getOrNull(2) ?: ""
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Ingredientes", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val listaIngredientes = ingredientesStr.split("@@").filter { it.isNotBlank() }
+                listaIngredientes.forEach { ing ->
+                    val datos = ing.split("::")
+                    val nombre = datos.getOrNull(0) ?: ""
+                    val kcal = datos.getOrNull(1) ?: ""
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("• $nombre", fontSize = 14.sp, color = Color.LightGray, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                        if (kcal.isNotEmpty()) {
+                            Text("$kcal kcal", color = Color.Gray, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Preparación", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                val listaPasos = pasosStr.split("@@").filter { it.isNotBlank() }
+                listaPasos.forEachIndexed { index, paso ->
+                    Row(modifier = Modifier.padding(bottom = 12.dp).fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(primaryColor.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("${index + 1}", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(paso, fontSize = 14.sp, color = Color.LightGray, modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Footer: Macros
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 MacroBadge(valor = "${receta.kcalTotales.toInt()} kcal", color = Color(0xFFE53935))
                 MacroBadge(valor = "${receta.proteinasTotales.toInt()}g Prot", color = Color(0xFF4CAF50))

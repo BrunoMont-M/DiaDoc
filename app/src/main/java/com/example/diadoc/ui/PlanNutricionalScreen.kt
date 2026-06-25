@@ -1,5 +1,6 @@
 package com.example.diadoc.ui
 
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
@@ -33,16 +35,19 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
+import com.example.diadoc.viewmodel.RecetarioViewModel
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +57,9 @@ fun PlanNutricionalScreen(
     uid: String,
     onNavigateBack: () -> Unit
 ) {
+    val recetarioViewModel: RecetarioViewModel = viewModel()
+    val context = LocalContext.current
+
     val dietaState by viewModel.dietaState.collectAsState()
     val alertaRestriccion by viewModel.alertaRestriccion.collectAsState()
 
@@ -138,7 +146,6 @@ fun PlanNutricionalScreen(
                     ) {
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Sumatoria explícita para Doubles mapeados
                         val totalKcal: Double = menuCompleto.values.flatten().sumOf { alim: Alimento -> alim.kcalBase }
                         ElevatedCard(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -173,7 +180,16 @@ fun PlanNutricionalScreen(
                                         consumidoActual = entrada.key.consumido
                                     )
                                 },
-                                onEditClick = { editandoCodDetDieta = entrada.key.codDetDieta }
+                                onEditClick = { editandoCodDetDieta = entrada.key.codDetDieta },
+                                onSaveClick = {
+                                    recetarioViewModel.guardarRecetaDesdeIA(
+                                        detalle = entrada.key,
+                                        alimentos = entrada.value,
+                                        codUsuario = uid,
+                                        guardadoDefinitivo = true
+                                    )
+                                    Toast.makeText(context, "¡'${entrada.key.nombrePlato}' agregada al Recetario Global!", Toast.LENGTH_SHORT).show()
+                                }
                             )
                         }
                         Spacer(modifier = Modifier.height(32.dp))
@@ -281,7 +297,7 @@ fun EditorDietaContenido(
                 .fillMaxWidth()
                 .onFocusChanged { focusState ->
                     isSearchFocused = focusState.isFocused
-                }, // CORRECCIÓN CLAVE: onFocusChanged correctamente enganchado en el Modifier
+                },
             singleLine = true,
             trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(12.dp)
@@ -325,7 +341,8 @@ fun TarjetaRecetaInteractiva(
     detalle: DetalleDieta,
     alimentos: List<Alimento>,
     onToggleConsumido: () -> Unit,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onSaveClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val consumido = detalle.consumido
@@ -380,6 +397,17 @@ fun TarjetaRecetaInteractiva(
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onSaveClick,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Save,
+                                contentDescription = "Guardar en recetario",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
                         IconButton(
                             onClick = onEditClick,
                             modifier = Modifier.size(24.dp)

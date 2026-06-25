@@ -19,6 +19,8 @@ class CatalogoAlimentosViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private var listaOriginal: List<Alimento> = emptyList()
+
     init {
         cargarAlimentos()
     }
@@ -29,11 +31,24 @@ class CatalogoAlimentosViewModel(
             try {
                 // Llama al método suspendido del repositorio real
                 val listaDesdeFirebase = repository.buscarAlimentos("")
-                _alimentos.value = listaDesdeFirebase
+                listaOriginal = listaDesdeFirebase
+                _alimentos.value = listaOriginal
             } catch (e: Exception) {
                 _alimentos.value = emptyList()
+                listaOriginal = emptyList()
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun buscarAlimentos(query: String) {
+        if (query.isBlank()) {
+            _alimentos.value = listaOriginal
+        } else {
+            val queryLower = query.lowercase().trim()
+            _alimentos.value = listaOriginal.filter { alimento ->
+                alimento.nombreAlimento.lowercase().contains(queryLower)
             }
         }
     }

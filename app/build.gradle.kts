@@ -107,4 +107,7 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose-m3:1.14.0")
     implementation("com.patrykandpatrick.vico:core:1.14.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
+
+    // Escáner de Códigos QR/Barras de Google Play Services
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 }

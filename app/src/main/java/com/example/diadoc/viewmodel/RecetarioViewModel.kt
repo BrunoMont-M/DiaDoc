@@ -2,6 +2,7 @@ package com.example.diadoc.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.RecetaPersonalizada
 import com.example.diadoc.repository.RecetaPersonalizadaRepository
@@ -39,7 +40,7 @@ class RecetarioViewModel(
                 )
                 cacheRecetasCompleto = resultado
                 aplicarFiltroBusqueda()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _recetas.value = emptyList()
             } finally {
                 _isLoading.value = false
@@ -78,22 +79,81 @@ class RecetarioViewModel(
         }
     }
 
-    fun guardarRecetaDesdeIA(detalle: DetalleDieta, codUsuario: String, guardadoDefinitivo: Boolean) {
+    fun guardarRecetaDesdeIA(
+        detalle: DetalleDieta,
+        alimentos: List<Alimento>,
+        codUsuario: String,
+        guardadoDefinitivo: Boolean
+    ) {
         viewModelScope.launch {
             val fechaExp = siAplicaTTL(guardadoDefinitivo)
+
+            val kcalCalc = if (alimentos.isNotEmpty()) alimentos.sumOf { it.kcalBase } else detalle.kcalTotales
+            val protCalc = if (alimentos.isNotEmpty()) alimentos.sumOf { it.proteinasBase } else 0.0
+            val carbCalc = if (alimentos.isNotEmpty()) alimentos.sumOf { it.carbohidratosBase } else detalle.carbohidratosTotales
+
+            val ingredientesStr = alimentos.joinToString("@@") { "${it.nombreAlimento}::${it.kcalBase.toInt()}" }
+            val pasosStr = detalle.preparacion.joinToString("@@")
+            val instruccionesEstructuradas = "${detalle.descripcionPlato}|||${ingredientesStr}|||${pasosStr}"
 
             val nuevaReceta = RecetaPersonalizada(
                 codUsuario = codUsuario,
                 nombreReceta = detalle.nombrePlato,
-                instruccionesReceta = detalle.descripcionPlato + "\n\nPasos:\n" + detalle.preparacion.joinToString("\n"),
+                instruccionesReceta = instruccionesEstructuradas,
                 tipoComida = detalle.tipoComida,
                 origenIA = true,
                 guardadaDefinitiva = guardadoDefinitivo,
                 fechaExpiracion = fechaExp,
-                kcalTotales = detalle.kcalTotales,
-                carbohidratosTotales = detalle.carbohidratosTotales
+                kcalTotales = kcalCalc,
+                proteinasTotales = protCalc,
+                carbohidratosTotales = carbCalc
             )
             repository.guardarReceta(nuevaReceta)
+            cargarRecetas(codUsuario)
+        }
+    }
+
+    fun guardarRecetaManual(
+        codUsuario: String,
+        nombre: String,
+        instrucciones: String,
+        kcal: Double,
+        prot: Double,
+        carb: Double,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val nuevaReceta = RecetaPersonalizada(
+                codReceta = "",
+                codUsuario = codUsuario,
+                nombreReceta = nombre,
+                instruccionesReceta = instrucciones,
+                tipoComida = "Personalizada",
+                origenIA = false,
+                guardadaDefinitiva = true,
+                fechaExpiracion = null,
+                kcalTotales = kcal,
+                proteinasTotales = prot,
+                carbohidratosTotales = carb
+            )
+
+            val exito = repository.guardarReceta(nuevaReceta)
+            if (exito) {
+                cargarRecetas(codUsuario)
+                onSuccess()
+            } else {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun eliminarReceta(codReceta: String, codUsuario: String) {
+        viewModelScope.launch {
+            val exito = repository.eliminarReceta(codReceta)
+            if (exito) {
+                cargarRecetas(codUsuario)
+            }
         }
     }
 

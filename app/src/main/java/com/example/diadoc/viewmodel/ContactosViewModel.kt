@@ -25,7 +25,10 @@ class ContactosViewModel(
     }
 
     fun guardarContacto(codUsuario: String, nombre: String, vinculo: String, telefono: String, codContactoEditar: String = "") {
-        if (telefono.isBlank() || !telefono.all { it.isDigit() }) {
+
+        val isValidPhone = telefono.isNotBlank() && telefono.matches(Regex("^\\+?[0-9]+$"))
+
+        if (!isValidPhone) {
             _errorTelefono.value = true
             return
         }

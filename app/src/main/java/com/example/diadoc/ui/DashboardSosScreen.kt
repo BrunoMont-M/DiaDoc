@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -24,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationServices
 import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.example.diadoc.viewmodel.ContactosViewModel
+import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
@@ -31,32 +33,57 @@ import kotlinx.coroutines.delay
 fun DashboardSosScreen(
     uid: String,
     contactosViewModel: ContactosViewModel = viewModel(),
-    bitacoraViewModel: BitacoraViewModel = viewModel()
+    bitacoraViewModel: BitacoraViewModel = viewModel(),
+    perfilViewModel: PerfilMedicoViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    // Obtener datos dinámicos
+    // Obtener datos en tiempo real de Firebase
     val listaContactos by contactosViewModel.contactos.collectAsState()
     val historial by bitacoraViewModel.historialReciente.collectAsState()
 
-    // Datos de glucosa
-    val registro = historial.firstOrNull { it.descripcion.contains("Glucosa", ignoreCase = true) }
-    val valorGlucosa = registro?.descripcion?.replace("Glucosa: ", "") ?: "0"
+    val usuario by perfilViewModel.usuario.collectAsState()
+    val patologiasCatalogo by perfilViewModel.patologias.collectAsState()
+    val patologiasDelUsuarioIDs by perfilViewModel.patologiasPrevias.collectAsState()
+
+    // 1. Datos Personales Dinámicos
+    val nombreReal = usuario?.nomYapeUsuario ?: "Un familiar"
+
+    // 2. Procesamiento Reactivo Puro
+    val textoPatologias by remember(patologiasCatalogo, patologiasDelUsuarioIDs) {
+        derivedStateOf {
+            val nombres = patologiasCatalogo
+                .filter { patologia ->
+                    patologiasDelUsuarioIDs.any { id -> id.trim() == patologia.codPatologia.trim() }
+                }
+                .map { it.nombreEnfermedad }
+
+            if (nombres.isNotEmpty()) nombres.joinToString(", ") else "una condición médica"
+        }
+    }
+
+    // 3. Detección Inteligente del Último Signo Vital
+    val ultimoRegistro = historial.firstOrNull()
+    val datoCritico = if (ultimoRegistro != null) {
+        "Mi último control indica: ${ultimoRegistro.descripcion}."
+    } else {
+        "No tengo controles vitales registrados recientemente."
+    }
 
     // Estados para GPS dinámico
-    var latitud by remember { mutableStateOf(0.0) }
-    var longitud by remember { mutableStateOf(0.0) }
+    var latitud by remember { mutableDoubleStateOf(0.0) }
+    var longitud by remember { mutableDoubleStateOf(0.0) }
 
-    // Estados para el flujo SOS
+    // Estados para la interfaz
     var sosStatus by remember { mutableStateOf("IDLE") }
     var segundos by remember { mutableStateOf(5) }
 
-    // Cargar datos y obtener ubicación al iniciar
+    // Al abrir la pantalla, cargamos todo el ecosistema
     LaunchedEffect(uid) {
         contactosViewModel.cargarContactos(uid)
         bitacoraViewModel.cargarBitacora(uid)
+        perfilViewModel.cargarDatosIniciales(uid)
 
-        // Lógica para obtener ubicación real
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
@@ -68,34 +95,54 @@ fun DashboardSosScreen(
         }
     }
 
-    // Lógica de Envío SMS (Dinámica con GPS real)
+    // Lógica robusta de envío múltiple
     LaunchedEffect(sosStatus) {
         if (sosStatus == "SENT") {
             try {
-                val contacto = listaContactos.firstOrNull()
-                val numeroDestino = contacto?.telefono
-
-                if (!numeroDestino.isNullOrEmpty()) {
+                if (listaContactos.isNotEmpty()) {
                     val smsManager = context.getSystemService(SmsManager::class.java)
-                    val nombreUsuario = "Usuario"
 
-                    val mensaje = "$nombreUsuario tiene $valorGlucosa mg/dL de glucosa. Ubicación: $latitud, $longitud"
+                    val linkMaps = "https://maps.google.com/?q=$latitud,$longitud"
 
-                    smsManager.sendTextMessage(numeroDestino, null, mensaje, null, null)
+                    // Mensaje completo, detallado y sin emojis para garantizar la mejor codificación posible
+                    val mensajeCompleto = "S.O.S. EMERGENCIA\n" +
+                            "Soy $nombreReal.\n" +
+                            "Soy paciente con $textoPatologias y necesito asistencia urgente.\n" +
+                            "$datoCritico\n" +
+                            "Mi ubicación exacta:\n" +
+                            linkMaps
 
-                    Toast.makeText(context, "Alerta enviada a $numeroDestino", Toast.LENGTH_LONG).show()
+                    val partesMensaje = smsManager.divideMessage(mensajeCompleto)
+
+                    var enviados = 0
+
+                    listaContactos.forEach { contacto ->
+                        val numeroDestino = contacto.telefono
+                        if (numeroDestino.isNotBlank()) {
+                            smsManager.sendMultipartTextMessage(numeroDestino, null, partesMensaje, null, null)
+                            enviados++
+
+                            // Delay de 3 segundos para un envío seguro y constante
+                            delay(3000)
+                        }
+                    }
+
+                    Toast.makeText(context, "Alerta enviada a $enviados contactos.", Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(context, "Error: No hay contacto configurado.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Error: No hay contactos configurados.", Toast.LENGTH_LONG).show()
                     sosStatus = "IDLE"
+                    segundos = 5
                 }
             } catch (e: Exception) {
                 Log.e("DEBUG_SOS", "Error al enviar: ${e.message}")
-                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Error al enviar SMS. Revisa los permisos.", Toast.LENGTH_LONG).show()
+                sosStatus = "IDLE"
+                segundos = 5
             }
         }
     }
 
-    // --- INTERFAZ ---
+    // --- INTERFAZ VISUAL ---
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF121214)),
         contentAlignment = Alignment.Center
@@ -131,13 +178,13 @@ fun DashboardSosScreen(
                     }
                     "SENT" -> {
                         Text("¡ALERTA ENVIADA!", color = Color.Green, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Text("🩸 Glucosa: $valorGlucosa mg/dL", color = Color.White, fontSize = 16.sp)
-                        Text("📍 GPS: $latitud, $longitud", color = Color.White, fontSize = 16.sp)
+                        Text("Se notificó a toda tu red de contención.", color = Color.White, fontSize = 16.sp, textAlign = TextAlign.Center)
+                        Text("📍 Ubicación y estado enviados.", color = Color.LightGray, fontSize = 14.sp)
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Button(onClick = { sosStatus = "IDLE"; segundos = 5 }, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
-                            Text("REINICIAR")
+                            Text("REINICIAR ALERTA")
                         }
                     }
                 }

@@ -36,6 +36,7 @@ import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.example.diadoc.viewmodel.GeneradorRutinaViewModel
 import com.example.diadoc.viewmodel.ReporteProgresoViewModel
+import com.example.diadoc.viewmodel.RecetarioViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 
@@ -44,7 +45,7 @@ fun AppNavigation(
     authViewModel: AuthViewModel,
     perfilViewModel: PerfilMedicoViewModel,
     dashboardViewModel: DashboardViewModel,
-    catalogoViewModel: CatalogoAlimentosViewModel // <-- Agregado acá arriba de forma segura
+    catalogoViewModel: CatalogoAlimentosViewModel
 ) {
     val navController = rememberNavController()
     val usuarioActual = FirebaseAuth.getInstance().currentUser
@@ -289,7 +290,6 @@ fun AppNavigation(
             }
 
             composable("catalogo_alimentos") {
-                // Se removió el viewModel() local problemático y se usa el del Scaffold superior
                 CatalogoAlimentosScreen(
                     viewModel = catalogoViewModel,
                     onBackClick = { navController.popBackStack() }
@@ -323,7 +323,8 @@ fun AppNavigation(
 
             composable("recetario") {
                 val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-                val recetarioViewModel: com.example.diadoc.viewmodel.RecetarioViewModel = viewModel()
+                val recetarioViewModel: RecetarioViewModel = viewModel() // ViewModel para listar
+
                 RecetarioScreen(
                     uid = uid,
                     viewModel = recetarioViewModel,
@@ -332,16 +333,20 @@ fun AppNavigation(
             }
 
             composable("crear_receta") {
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val recetarioViewModel: RecetarioViewModel = viewModel()
+
                 CrearRecetaScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") }
+                    uid = uid,
+                    recetarioViewModel = recetarioViewModel,
+                    catalogoViewModel = catalogoViewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             composable("registrar_alimento") {
                 RegistrarAlimentoScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onScanQrClick = { /* Próximo paso: Integración con la cámara */ }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

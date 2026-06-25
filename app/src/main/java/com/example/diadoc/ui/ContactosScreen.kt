@@ -78,7 +78,7 @@ fun ContactosScreen(
                 onValueChange = { telefono = it },
                 label = { Text("Teléfono") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 isError = errorTelefono,
                 supportingText = { if (errorTelefono) Text("Ingrese un teléfono válido") }
             )
