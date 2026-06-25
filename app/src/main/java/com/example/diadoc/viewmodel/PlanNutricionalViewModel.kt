@@ -5,14 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.Dieta
+import com.example.diadoc.model.RecetaPersonalizada
 import com.example.diadoc.repository.CatalogoAlimentosRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
+import com.example.diadoc.repository.RecetaPersonalizadaRepository
 import com.example.diadoc.utils.Resource
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -21,7 +25,8 @@ class PlanNutricionalViewModel(
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
     private val dietaRepository: DietaRepository = DietaRepository(),
     private val catalogoRepository: CatalogoAlimentosRepository = CatalogoAlimentosRepository(),
-    private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository()
+    private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
+    private val recetaRepository: RecetaPersonalizadaRepository = RecetaPersonalizadaRepository()
 ) : ViewModel() {
 
     private val _dietaState = MutableStateFlow<Resource<Pair<Dieta, Map<DetalleDieta, List<Alimento>>>>?>(null)
@@ -29,6 +34,9 @@ class PlanNutricionalViewModel(
 
     private val _catalogoResultados = MutableStateFlow<List<Alimento>>(emptyList())
     val catalogoResultados: StateFlow<List<Alimento>> = _catalogoResultados
+
+    private val _recetasGlobales = MutableStateFlow<List<RecetaPersonalizada>>(emptyList())
+    val recetasGlobales: StateFlow<List<RecetaPersonalizada>> = _recetasGlobales
 
     private val _alertaRestriccion = MutableStateFlow<String?>(null)
     val alertaRestriccion: StateFlow<String?> = _alertaRestriccion
@@ -72,6 +80,92 @@ class PlanNutricionalViewModel(
         }
     }
 
+    // --- Lógica del Buscador de Recetas Globales ---
+    fun buscarRecetasGlobales(uid: String, query: String, tipoComida: String) {
+        viewModelScope.launch {
+            val categoriaFiltro = if (tipoComida == "Todas") null else tipoComida
+            val todasLasRecetas = recetaRepository.obtenerRecetas(uid, categoriaFiltro)
+
+            if (query.isBlank()) {
+                _recetasGlobales.value = todasLasRecetas
+            } else {
+                _recetasGlobales.value = todasLasRecetas.filter {
+                    it.nombreReceta.contains(query, ignoreCase = true) ||
+                            it.instruccionesReceta.contains(query, ignoreCase = true)
+                }
+            }
+        }
+    }
+
+    fun limpiarBuscadorRecetas() {
+        _recetasGlobales.value = emptyList()
+    }
+
+    // --- Motor de Reemplazo Estructural ---
+    fun reemplazarRecetaCompleta(codDieta: String, detalleActual: DetalleDieta, nuevaReceta: RecetaPersonalizada, uid: String) {
+        viewModelScope.launch {
+            _dietaState.value = Resource.Loading
+            try {
+                // 1. Parseamos las instrucciones estructuradas de la IA guardadas en la receta global
+                val partes = nuevaReceta.instruccionesReceta.split("|||")
+                val descripcion = partes.getOrNull(0) ?: "Receta importada del catálogo"
+                val ingredientesStr = partes.getOrNull(1) ?: ""
+                val pasosStr = partes.getOrNull(2) ?: ""
+
+                val preparacionList = if (pasosStr.isNotBlank()) pasosStr.split("@@") else emptyList()
+                val ingredientesList = if (ingredientesStr.isNotBlank()) ingredientesStr.split("@@") else emptyList()
+
+                val nuevosAlimentos = ingredientesList.mapNotNull { ingData ->
+                    val ingParts = ingData.split("::")
+                    val nombre = ingParts.getOrNull(0)
+                    val kcal = ingParts.getOrNull(1)?.toDoubleOrNull() ?: 0.0
+                    if (nombre != null) {
+                        Alimento(
+                            nombreAlimento = nombre,
+                            kcalBase = kcal,
+                            proteinasBase = 0.0, carbohidratosBase = 0.0, grasasBase = 0.0, indiceGlucemico = 0
+                        )
+                    } else null
+                }
+
+                // 2. Operación Transaccional en Firestore
+                val db = FirebaseFirestore.getInstance()
+                val detalleRef = db.collection("dietas").document(codDieta)
+                    .collection("detalles_comidas").document(detalleActual.codDetDieta)
+
+                // A. Borramos los alimentos viejos
+                val viejosAlimentos = detalleRef.collection("alimentos_detalle").get().await()
+                for (doc in viejosAlimentos) {
+                    doc.reference.delete().await()
+                }
+
+                // B. Actualizamos el encabezado del plato
+                detalleRef.update(
+                    mapOf(
+                        "nombrePlato" to nuevaReceta.nombreReceta,
+                        "descripcionPlato" to descripcion,
+                        "preparacion" to preparacionList,
+                        "cantDetDieta" to nuevosAlimentos.size,
+                        "consumido" to false
+                    )
+                ).await()
+
+                // C. Insertamos los nuevos alimentos
+                for (alim in nuevosAlimentos) {
+                    val nuevoDoc = detalleRef.collection("alimentos_detalle").document()
+                    nuevoDoc.set(alim.copy(codAlimento = nuevoDoc.id)).await()
+                }
+
+                // 3. Recargamos la interfaz
+                cargarDietaDeHoy(uid)
+
+            } catch (e: Exception) {
+                _dietaState.value = Resource.Error("Error al reemplazar la receta.")
+            }
+        }
+    }
+
+    // Lógica de Catálogo de Ingredientes Individuales
     fun buscarEnCatalogo(query: String) {
         viewModelScope.launch {
             if (query.length >= 2) {

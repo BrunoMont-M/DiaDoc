@@ -414,7 +414,13 @@ fun DashboardScreen(
                                 if (comidasHoy.isEmpty()) {
                                     Text("Aún no hay menú generado.", fontStyle = FontStyle.Italic, fontSize = 14.sp)
                                 } else {
-                                    comidasHoy.forEach { comida ->
+                                    val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
+                                    val comidasOrdenadas = comidasHoy.sortedBy { comida ->
+                                        val index = ordenCronologico.indexOfFirst { it.equals(comida.tipoComida, ignoreCase = true) }
+                                        if (index != -1) index else 99
+                                    }
+
+                                    comidasOrdenadas.forEach { comida ->
                                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
                                             Icon(if (comida.consumido) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, contentDescription = null, tint = if (comida.consumido) Color(0xFF4CAF50) else Color.Gray, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(8.dp))

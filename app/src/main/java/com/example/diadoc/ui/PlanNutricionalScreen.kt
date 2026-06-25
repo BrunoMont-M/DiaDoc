@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
+import com.example.diadoc.model.RecetaPersonalizada
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 import com.example.diadoc.viewmodel.RecetarioViewModel
@@ -64,6 +67,7 @@ fun PlanNutricionalScreen(
     val alertaRestriccion by viewModel.alertaRestriccion.collectAsState()
 
     var editandoCodDetDieta by remember { mutableStateOf<String?>(null) }
+    var reemplazandoDetalle by remember { mutableStateOf<DetalleDieta?>(null) }
 
     val refreshState = rememberPullToRefreshState()
     if (refreshState.isRefreshing) {
@@ -138,6 +142,18 @@ fun PlanNutricionalScreen(
                         }
                     }
 
+                    if (reemplazandoDetalle != null) {
+                        ModalBottomSheet(onDismissRequest = { reemplazandoDetalle = null; viewModel.limpiarBuscadorRecetas() }) {
+                            BuscadorRecetasGlobalBottomSheet(
+                                detalleActual = reemplazandoDetalle!!,
+                                viewModel = viewModel,
+                                codDieta = dieta.codDieta,
+                                uid = uid,
+                                onDismiss = { reemplazandoDetalle = null; viewModel.limpiarBuscadorRecetas() }
+                            )
+                        }
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -161,9 +177,10 @@ fun PlanNutricionalScreen(
                             }
                         }
 
-                        val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena", "Snack Media Tarde")
+                        val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
                         val menuOrdenado = menuCompleto.entries.sortedBy { entrada ->
-                            val index = ordenCronologico.indexOf(entrada.key.tipoComida)
+                            // Forzamos la insensibilidad a mayúsculas para evitar bugs si la IA falla una letra
+                            val index = ordenCronologico.indexOfFirst { it.equals(entrada.key.tipoComida, ignoreCase = true) }
                             if (index != -1) index else 99
                         }
 
@@ -180,6 +197,7 @@ fun PlanNutricionalScreen(
                                         consumidoActual = entrada.key.consumido
                                     )
                                 },
+                                onSwapClick = { reemplazandoDetalle = entrada.key },
                                 onEditClick = { editandoCodDetDieta = entrada.key.codDetDieta },
                                 onSaveClick = {
                                     recetarioViewModel.guardarRecetaDesdeIA(
@@ -220,6 +238,113 @@ fun PlanNutricionalScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BuscadorRecetasGlobalBottomSheet(
+    detalleActual: DetalleDieta,
+    viewModel: PlanNutricionalViewModel,
+    codDieta: String,
+    uid: String,
+    onDismiss: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Por defecto, iniciamos el filtro en la categoría de la comida que estamos reemplazando
+    var chipSeleccionado by remember { mutableStateOf(detalleActual.tipoComida) }
+    val categorias = listOf("Todas", "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
+
+    val recetasResultados by viewModel.recetasGlobales.collectAsState()
+
+    // Cada vez que cambia el texto o el chip, actualizamos la búsqueda en BD
+    LaunchedEffect(searchQuery, chipSeleccionado) {
+        viewModel.buscarRecetasGlobales(uid, searchQuery, chipSeleccionado)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.9f)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .imePadding()
+    ) {
+        Text(
+            text = "Reemplazar ${detalleActual.tipoComida}",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Buscador de Texto
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = { Text("Buscar en el Recetario Global...") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Chips de Filtro Rápido
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(categorias) { categoria ->
+                FilterChip(
+                    selected = chipSeleccionado == categoria,
+                    onClick = { chipSeleccionado = categoria },
+                    label = { Text(categoria) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Resultados
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            if (recetasResultados.isEmpty()) {
+                item {
+                    Text(
+                        text = "No se encontraron recetas para esta categoría.",
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        textAlign = TextAlign.Center,
+                        color = Color.Gray
+                    )
+                }
+            } else {
+                items(recetasResultados, key = { it.codReceta }) { receta ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .clickable {
+                                focusManager.clearFocus()
+                                viewModel.reemplazarRecetaCompleta(codDieta, detalleActual, receta, uid)
+                                onDismiss()
+                            },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(receta.nombreReceta, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("${receta.kcalTotales.toInt()} kcal", color = Color.Gray, fontSize = 14.sp)
+                            }
+                            Icon(Icons.Default.Sync, contentDescription = "Seleccionar Reemplazo", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 @Composable
 fun EditorDietaContenido(
     detalle: DetalleDieta,
@@ -252,7 +377,7 @@ fun EditorDietaContenido(
                 }
             }
             Text(
-                text = if (isSearchFocused) "Buscando Alimento..." else "Editando: ${detalle.tipoComida}",
+                text = if (isSearchFocused) "Buscando Alimento..." else "Editar Ingredientes",
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.primary
@@ -292,7 +417,7 @@ fun EditorDietaContenido(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it; viewModel.buscarEnCatalogo(it) },
-            label = { Text("Buscar en catálogo...") },
+            label = { Text("Buscar ingrediente...") },
             modifier = Modifier
                 .fillMaxWidth()
                 .onFocusChanged { focusState ->
@@ -341,6 +466,7 @@ fun TarjetaRecetaInteractiva(
     detalle: DetalleDieta,
     alimentos: List<Alimento>,
     onToggleConsumido: () -> Unit,
+    onSwapClick: () -> Unit,
     onEditClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
@@ -397,31 +523,21 @@ fun TarjetaRecetaInteractiva(
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onSaveClick,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Save,
-                                contentDescription = "Guardar en recetario",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        IconButton(onClick = onSaveClick, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Save, contentDescription = "Guardar", tint = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        IconButton(
-                            onClick = onEditClick,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Opciones de receta",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        IconButton(onClick = onSwapClick, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Sync, contentDescription = "Reemplazar receta", tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        IconButton(onClick = onEditClick, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Opciones", tint = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Icon(
                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = "Expandir/Contraer",
+                            contentDescription = "Expandir",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

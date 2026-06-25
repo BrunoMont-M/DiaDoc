@@ -12,11 +12,14 @@ import com.example.diadoc.repository.AlimentoRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
+import com.example.diadoc.repository.RecetaPersonalizadaRepository
 import com.example.diadoc.utils.Resource
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -26,7 +29,8 @@ class GeneradorPlanViewModel(
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
     private val dietaRepository: DietaRepository = DietaRepository(),
-    private val alimentoRepository: AlimentoRepository = AlimentoRepository()
+    private val alimentoRepository: AlimentoRepository = AlimentoRepository(),
+    private val recetaRepository: RecetaPersonalizadaRepository = RecetaPersonalizadaRepository()
 ) : ViewModel() {
 
     private val _generacionState = MutableStateFlow<Resource<Boolean>?>(null)
@@ -50,7 +54,10 @@ class GeneradorPlanViewModel(
                 val patologias = perfilRepository.obtenerPatologiasDelPerfil(perfil.codPerfil).joinToString(", ").ifBlank { "Ninguna reportada" }
                 val restricciones = perfilRepository.obtenerRestriccionesDelPerfil(perfil.codPerfil).joinToString(", ").ifBlank { "Ninguna reportada" }
 
-                // Prompt para la generación de recetas
+                val recetasPrevias = recetaRepository.obtenerRecetas(codUsuario).map { it.nombreReceta }
+                val historialNombres = if (recetasPrevias.isNotEmpty()) recetasPrevias.joinToString(", ") else "Ninguna"
+
+                // PROMPT CORREGIDO: Estandarización de mayúsculas e ingredientes básicos
                 val prompt = """
                     Actúa como un Nutricionista Clínico de Alta Especialidad y Chef Profesional. Tu objetivo es diseñar un plan de alimentación diario ESTRICTAMENTE PERSONALIZADO y SEGURO para un paciente con el siguiente perfil:
                     - Peso actual: ${perfil.pesoActual} kg
@@ -58,15 +65,14 @@ class GeneradorPlanViewModel(
                     - Patologías diagnosticadas: $patologias
                     - Restricciones/Alergias alimentarias: $restricciones
                     
-                    DIRECTRICES MÉDICAS CRÍTICAS (DE CUMPLIMIENTO OBLIGATORIO):
-                    1. Es VITAL para la salud del paciente que el menú respete rigurosamente las patologías y restricciones indicadas. Excluye por completo cualquier ingrediente que esté contraindicado para sus patologías o genere reacciones alérgicas según su perfil.
-                    2. Aplica lógica clínica: Si tiene hipertensión, diseña platos bajos en sodio; si es celíaco, excluye totalmente el gluten; si es diabético, prioriza ingredientes de bajo índice glucémico; si no tiene restricciones, prioriza una dieta equilibrada y saludable.
-                    3. Calcula un objetivo calórico coherente (mantenimiento, déficit o superávit moderado) basado en su peso y altura.
+                    DIRECTRICES MÉDICAS CRÍTICAS:
+                    1. Es VITAL para la salud del paciente que el menú respete rigurosamente las patologías y restricciones indicadas.
+                    2. Aplica lógica clínica según su diagnóstico para elegir los ingredientes correctos.
+                    3. Calcula un objetivo calórico coherente.
+                    4. ESTRUCTURA DE COMIDAS (INQUEBRANTABLE): EXACTAMENTE 6 objetos en este orden escrito exactamente así: "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda" y "Cena". NO omitas ni fusiones ingestas.
+                    5. REGLA ANTI-DUPLICADOS: El paciente ya conoce estas recetas: $historialNombres. TIENES ESTRICTAMENTE PROHIBIDO generar recetas con estos nombres.
 
-                    DIRECTRICES CULINARIAS Y DE EXPERIENCIA DE USUARIO:
-                    Diseña un menú de autor, que sea atractivo, variado y delicioso. Evita nombres genéricos. Cada comida debe sentirse como una receta premium. Asigna un nombre atractivo al plato ("nombrePlato"), una descripción ("descripcionPlato") que explique de forma empática cómo este plato beneficia su condición clínica específica, y un arreglo de instrucciones paso a paso claras ("preparacion").
-                    
-                    Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido con la siguiente estructura exacta, sin código Markdown ni texto adicional al principio o al final:
+                    Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido.
                     {
                       "objetivoPlan": "Mantenimiento / Déficit / Superávit",
                       "kcalDieta": 2000,
@@ -74,14 +80,13 @@ class GeneradorPlanViewModel(
                       "comidas": [
                         {
                           "tipoComida": "Desayuno",
-                          "nombrePlato": "Nombre Gourmet y Atractivo",
-                          "descripcionPlato": "Breve descripción destacando el impacto positivo del plato para sus patologías y nutrición.",
+                          "nombrePlato": "Nombre Gourmet",
+                          "descripcionPlato": "Breve descripción clínica.",
                           "preparacion": [
-                            "Paso 1 detallado.",
-                            "Paso 2 detallado."
+                            "Paso 1 detallado."
                           ],
                           "alimentos": [
-                            { "nombreAlimento": "Nombre del ingrediente", "kcalBase": 100.0, "proteinasBase": 5.0, "carbohidratosBase": 10.0, "grasasBase": 2.0, "indiceGlucemico": 30 }
+                            { "nombreAlimento": "Nombre del ingrediente BÁSICO Y SIMPLE (ej. Manzana, Pollo, Arroz. NUNCA nombres compuestos ni preparaciones)", "kcalBase": 100.0, "proteinasBase": 5.0, "carbohidratosBase": 10.0, "grasasBase": 2.0, "indiceGlucemico": 30 }
                           ]
                         }
                       ]
@@ -89,13 +94,23 @@ class GeneradorPlanViewModel(
                 """.trimIndent()
 
                 val response = generativeModel.generateContent(prompt)
-                val jsonText = response.text?.replace("\u0060\u0060\u0060json", "")?.replace("\u0060\u0060\u0060", "")?.trim() ?: ""
+                val rawText = response.text ?: ""
+
+                // EXTRACCIÓN ROBUSTA DE JSON: Ignora basura antes o después del JSON
+                val startIndex = rawText.indexOf("{")
+                val endIndex = rawText.lastIndexOf("}")
+
+                val jsonText = if (startIndex != -1 && endIndex != -1) {
+                    rawText.substring(startIndex, endIndex + 1)
+                } else {
+                    throw Exception("La IA no devolvió una estructura válida.")
+                }
 
                 procesarYGuardarJSON(jsonText, codUsuario)
 
             } catch (e: Exception) {
                 Log.e("IA_ERROR", "Error generando dieta: ${e.message}")
-                _generacionState.value = Resource.Error("Error al conectar con el motor IA.")
+                _generacionState.value = Resource.Error("El motor IA está saturado. Por favor, intenta de nuevo.")
             }
         }
     }
@@ -104,6 +119,16 @@ class GeneradorPlanViewModel(
         try {
             val jsonObject = JSONObject(jsonString)
             val fechaHoy = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
+            val planAnterior = planRepository.obtenerPlanDeHoy(codUsuario, fechaHoy)
+            if (planAnterior != null) {
+                val db = FirebaseFirestore.getInstance()
+                val dietaAnterior = dietaRepository.obtenerDietaPorPlan(planAnterior.codPlan)
+                if (dietaAnterior != null) {
+                    db.collection("dietas").document(dietaAnterior.codDieta).delete().await()
+                }
+                db.collection("planesDiarios").document(planAnterior.codPlan).delete().await()
+            }
 
             val plan = PlanDiario(
                 codUsuario = codUsuario,
@@ -123,6 +148,7 @@ class GeneradorPlanViewModel(
 
             val comidasArray = jsonObject.getJSONArray("comidas")
             val menuCompleto = mutableMapOf<DetalleDieta, List<Alimento>>()
+            val catalogoGlobal = alimentoRepository.obtenerTodosLosAlimentos()
 
             for (i in 0 until comidasArray.length()) {
                 val comidaObj = comidasArray.getJSONObject(i)
@@ -137,7 +163,7 @@ class GeneradorPlanViewModel(
                     cantDetDieta = comidaObj.getJSONArray("alimentos").length(),
                     tipoComida = comidaObj.getString("tipoComida"),
                     nombrePlato = comidaObj.optString("nombrePlato", "Plato Saludable"),
-                    descripcionPlato = comidaObj.optString("descripcionPlato", "Preparación nutritiva sugerida por IA."),
+                    descripcionPlato = comidaObj.optString("descripcionPlato", "Preparación sugerida por IA."),
                     preparacion = preparacionList
                 )
 
@@ -146,16 +172,24 @@ class GeneradorPlanViewModel(
 
                 for (j in 0 until alimentosArray.length()) {
                     val alimObj = alimentosArray.getJSONObject(j)
-                    val alimento = Alimento(
-                        nombreAlimento = alimObj.getString("nombreAlimento"),
-                        kcalBase = alimObj.getDouble("kcalBase"),
-                        proteinasBase = alimObj.getDouble("proteinasBase"),
-                        carbohidratosBase = alimObj.getDouble("carbohidratosBase"),
-                        grasasBase = alimObj.getDouble("grasasBase"),
-                        indiceGlucemico = alimObj.getInt("indiceGlucemico")
-                    )
-                    listaAlimentos.add(alimento)
-                    alimentoRepository.guardarAlimento(alimento)
+                    val nombreBuscado = alimObj.getString("nombreAlimento")
+
+                    val alimentoExistente = catalogoGlobal.find { it.nombreAlimento.equals(nombreBuscado, ignoreCase = true) }
+
+                    if (alimentoExistente != null) {
+                        listaAlimentos.add(alimentoExistente)
+                    } else {
+                        val nuevoAlimento = Alimento(
+                            nombreAlimento = nombreBuscado,
+                            kcalBase = alimObj.getDouble("kcalBase"),
+                            proteinasBase = alimObj.getDouble("proteinasBase"),
+                            carbohidratosBase = alimObj.getDouble("carbohidratosBase"),
+                            grasasBase = alimObj.getDouble("grasasBase"),
+                            indiceGlucemico = alimObj.getInt("indiceGlucemico")
+                        )
+                        alimentoRepository.guardarAlimento(nuevoAlimento)
+                        listaAlimentos.add(nuevoAlimento)
+                    }
                 }
                 menuCompleto[detalle] = listaAlimentos
             }
@@ -165,7 +199,7 @@ class GeneradorPlanViewModel(
 
         } catch (e: Exception) {
             Log.e("JSON_PARSE_ERROR", "Error: ${e.message}")
-            _generacionState.value = Resource.Error("Error al procesar la receta.")
+            _generacionState.value = Resource.Error("Error de validación al generar el menú.")
         }
     }
 

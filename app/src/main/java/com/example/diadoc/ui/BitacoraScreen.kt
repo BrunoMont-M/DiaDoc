@@ -111,7 +111,13 @@ fun BitacoraScreen(
                         if (comidasCheckIn.isEmpty()) {
                             Text("No hay actividades registradas en tu plan de hoy.", fontStyle = FontStyle.Italic, color = Color.Gray)
                         } else {
-                            comidasCheckIn.forEach { comida ->
+                            val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
+                            val comidasOrdenadas = comidasCheckIn.sortedBy { comida ->
+                                val index = ordenCronologico.indexOfFirst { it.equals(comida.tipoComida, ignoreCase = true) }
+                                if (index != -1) index else 99
+                            }
+
+                            comidasOrdenadas.forEach { comida ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier

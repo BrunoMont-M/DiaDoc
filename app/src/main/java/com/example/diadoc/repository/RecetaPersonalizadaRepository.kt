@@ -1,6 +1,7 @@
 package com.example.diadoc.repository
 
 import com.example.diadoc.model.RecetaPersonalizada
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
@@ -23,6 +24,7 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
         }
     }
 
+    // --- LOGICA DE LAZY DELETION ---
     suspend fun obtenerRecetas(codUsuario: String, tipoComida: String? = null): List<RecetaPersonalizada> {
         return try {
             var query: Query = db.collection("recetasPersonalizadas")
@@ -33,10 +35,23 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
             }
 
             val snapshot = query.get().await()
+            val ahora = Timestamp.now()
 
-            val listaSinOrdenar = snapshot.toObjects(RecetaPersonalizada::class.java)
+            // Filtramos y limpiamos la base de datos en caliente
+            val listaFiltrada = snapshot.documents.mapNotNull { doc ->
+                val receta = doc.toObject(RecetaPersonalizada::class.java)?.copy(codReceta = doc.id)
 
-            listaSinOrdenar.sortedWith(
+                if (receta?.fechaExpiracion != null && receta.fechaExpiracion!!.seconds < ahora.seconds) {
+                    // LAZY DELETION: Si la receta expiró, se dispara el borrado en Firestore en segundo plano
+                    doc.reference.delete()
+                    null // Retornamos null para excluirla inmediatamente de la vista del usuario
+                } else {
+                    receta // Si está vigente o es definitiva, se mantiene en la lista
+                }
+            }
+
+            // Ordenamos el resultado limpio
+            listaFiltrada.sortedWith(
                 compareByDescending<RecetaPersonalizada> { it.esFavorita }
                     .thenBy { it.nombreReceta.lowercase() }
             )
@@ -45,6 +60,7 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
         }
     }
 
+    // Alternar Favorito (Existente)
     suspend fun alternarFavorito(codReceta: String, estadoActual: Boolean): Boolean {
         return try {
             db.collection("recetasPersonalizadas")
@@ -57,6 +73,7 @@ class RecetaPersonalizadaRepository(private val db: FirebaseFirestore = Firebase
         }
     }
 
+    // Eliminar Receta Manual
     suspend fun eliminarReceta(codReceta: String): Boolean {
         return try {
             db.collection("recetasPersonalizadas").document(codReceta).delete().await()

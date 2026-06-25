@@ -158,9 +158,10 @@ class RecetarioViewModel(
     }
 
     private fun siAplicaTTL(guardadoDefinitivo: Boolean): Timestamp? {
-        if (guardadoDefinitivo) return null
+        if (guardadoDefinitivo) return null // Las manuales o favoritas JAMÁS se borran
+
         val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_YEAR, 30)
+        calendar.add(Calendar.DAY_OF_YEAR, 7) // Cambiado a 7 días de auto-destrucción
         return Timestamp(calendar.time)
     }
 }
