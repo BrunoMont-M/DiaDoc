@@ -3,12 +3,12 @@ package com.example.diadoc.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.diadoc.BuildConfig
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.Dieta
 import com.example.diadoc.model.PlanDiario
 import com.example.diadoc.repository.AlimentoRepository
+import com.example.diadoc.repository.ConfiguracionRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
@@ -30,21 +30,30 @@ class GeneradorPlanViewModel(
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
     private val dietaRepository: DietaRepository = DietaRepository(),
     private val alimentoRepository: AlimentoRepository = AlimentoRepository(),
-    private val recetaRepository: RecetaPersonalizadaRepository = RecetaPersonalizadaRepository()
+    private val recetaRepository: RecetaPersonalizadaRepository = RecetaPersonalizadaRepository(),
+    private val configRepository: ConfiguracionRepository = ConfiguracionRepository()
 ) : ViewModel() {
 
     private val _generacionState = MutableStateFlow<Resource<Boolean>?>(null)
     val generacionState: StateFlow<Resource<Boolean>?> = _generacionState
 
-    private val generativeModel = GenerativeModel(
-        modelName = "gemini-2.5-flash",
-        apiKey = BuildConfig.GEMINI_API_KEY
-    )
-
     fun generarPlanParaUsuario(codUsuario: String) {
         viewModelScope.launch {
             _generacionState.value = Resource.Loading
             try {
+                // 1. OBTENER API KEY CENTRALIZADA DESDE FIRESTORE
+                val apiKey = configRepository.obtenerApiKeyGemini()
+                if (apiKey.isEmpty()) {
+                    _generacionState.value = Resource.Error("Error de infraestructura: API Key no encontrada en la base de datos.")
+                    return@launch
+                }
+
+                // 2. INICIALIZAR EL MOTOR IA CON LA LLAVE DESCARGADA
+                val generativeModel = GenerativeModel(
+                    modelName = "gemini-2.5-flash",
+                    apiKey = apiKey
+                )
+
                 val perfil = perfilRepository.obtenerPerfilPorUsuario(codUsuario)
                 if (perfil == null) {
                     _generacionState.value = Resource.Error("Perfil médico no encontrado.")
@@ -57,7 +66,6 @@ class GeneradorPlanViewModel(
                 val recetasPrevias = recetaRepository.obtenerRecetas(codUsuario).map { it.nombreReceta }
                 val historialNombres = if (recetasPrevias.isNotEmpty()) recetasPrevias.joinToString(", ") else "Ninguna"
 
-                // PROMPT CORREGIDO: Estandarización de mayúsculas e ingredientes básicos
                 val prompt = """
                     Actúa como un Nutricionista Clínico de Alta Especialidad y Chef Profesional. Tu objetivo es diseñar un plan de alimentación diario ESTRICTAMENTE PERSONALIZADO y SEGURO para un paciente con el siguiente perfil:
                     - Peso actual: ${perfil.pesoActual} kg
@@ -96,7 +104,6 @@ class GeneradorPlanViewModel(
                 val response = generativeModel.generateContent(prompt)
                 val rawText = response.text ?: ""
 
-                // EXTRACCIÓN ROBUSTA DE JSON: Ignora basura antes o después del JSON
                 val startIndex = rawText.indexOf("{")
                 val endIndex = rawText.lastIndexOf("}")
 

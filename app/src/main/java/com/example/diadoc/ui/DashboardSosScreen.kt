@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.example.diadoc.viewmodel.ContactosViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
@@ -78,7 +80,7 @@ fun DashboardSosScreen(
     var sosStatus by remember { mutableStateOf("IDLE") }
     var segundos by remember { mutableStateOf(5) }
 
-    // Al abrir la pantalla, cargamos todo el ecosistema
+    // Al abrir la pantalla, cargamos todo el ecosistema y forzamos lectura de GPS real
     LaunchedEffect(uid) {
         contactosViewModel.cargarContactos(uid)
         bitacoraViewModel.cargarBitacora(uid)
@@ -86,12 +88,17 @@ fun DashboardSosScreen(
 
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                location?.let {
-                    latitud = it.latitude
-                    longitud = it.longitude
+
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                .addOnSuccessListener { location ->
+                    location?.let {
+                        latitud = it.latitude
+                        longitud = it.longitude
+                        Log.d("GPS_SOS", "Coordenadas obtenidas: $latitud, $longitud")
+                    }
+                }.addOnFailureListener {
+                    Log.e("GPS_SOS", "Fallo al obtener ubicación precisa")
                 }
-            }
         }
     }
 
@@ -104,7 +111,6 @@ fun DashboardSosScreen(
 
                     val linkMaps = "https://maps.google.com/?q=$latitud,$longitud"
 
-                    // Mensaje completo, detallado y sin emojis para garantizar la mejor codificación posible
                     val mensajeCompleto = "S.O.S. EMERGENCIA\n" +
                             "Soy $nombreReal.\n" +
                             "Soy paciente con $textoPatologias y necesito asistencia urgente.\n" +
@@ -122,7 +128,6 @@ fun DashboardSosScreen(
                             smsManager.sendMultipartTextMessage(numeroDestino, null, partesMensaje, null, null)
                             enviados++
 
-                            // Delay de 3 segundos para un envío seguro y constante
                             delay(3000)
                         }
                     }

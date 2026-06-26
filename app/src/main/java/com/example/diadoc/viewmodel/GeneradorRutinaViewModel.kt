@@ -3,11 +3,11 @@ package com.example.diadoc.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.diadoc.BuildConfig
 import com.example.diadoc.model.DetalleRutina
 import com.example.diadoc.model.Ejercicio
 import com.example.diadoc.model.PlanDiario
 import com.example.diadoc.model.Rutina
+import com.example.diadoc.repository.ConfiguracionRepository
 import com.example.diadoc.repository.EjercicioRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
@@ -25,7 +25,8 @@ class GeneradorRutinaViewModel(
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val ejercicioRepository: EjercicioRepository = EjercicioRepository(),
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
-    private val rutinaRepository: RutinaRepository = RutinaRepository()
+    private val rutinaRepository: RutinaRepository = RutinaRepository(),
+    private val configRepository: ConfiguracionRepository = ConfiguracionRepository()
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -42,11 +43,6 @@ class GeneradorRutinaViewModel(
 
     private val _errorEdicion = MutableStateFlow<String?>(null)
     val errorEdicion: StateFlow<String?> = _errorEdicion
-
-    private val generativeModel = GenerativeModel(
-        modelName = "gemini-2.5-flash",
-        apiKey = BuildConfig.GEMINI_API_KEY
-    )
 
     fun limpiarErrorEdicion() {
         _errorEdicion.value = null
@@ -80,6 +76,20 @@ class GeneradorRutinaViewModel(
             _error.value = null
 
             try {
+                // 1. Descargamos la llave segura de Firestore
+                val apiKey = configRepository.obtenerApiKeyGemini()
+                if (apiKey.isEmpty()) {
+                    _error.value = "Error de infraestructura: API Key no encontrada en la base de datos."
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                // 2. Inicializamos el motor IA localmente
+                val generativeModel = GenerativeModel(
+                    modelName = "gemini-2.5-flash",
+                    apiKey = apiKey
+                )
+
                 val perfil = perfilRepository.obtenerPerfilPorUsuario(uid)
                 val patologias = if (perfil != null) {
                     perfilRepository.obtenerPatologiasDelPerfil(perfil.codPerfil)

@@ -3,11 +3,11 @@ package com.example.diadoc.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.diadoc.BuildConfig
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.DetalleRutina
 import com.example.diadoc.model.PlanDiario
 import com.example.diadoc.model.Usuario
+import com.example.diadoc.repository.ConfiguracionRepository
 import com.example.diadoc.repository.ControlDiarioRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
@@ -33,7 +33,8 @@ class DashboardViewModel(
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
     private val dietaRepository: DietaRepository = DietaRepository(),
     private val controlRepository: ControlDiarioRepository = ControlDiarioRepository(),
-    private val rutinaRepository: RutinaRepository = RutinaRepository()
+    private val rutinaRepository: RutinaRepository = RutinaRepository(),
+    private val configRepository: ConfiguracionRepository = ConfiguracionRepository()
 ) : ViewModel() {
 
     private val _usuario = MutableStateFlow<Usuario?>(null)
@@ -274,7 +275,14 @@ class DashboardViewModel(
                 }
             } else {
                 _tipDelDia.value = "Generando tu cápsula educativa del mes..."
-                val generativeModel = GenerativeModel(modelName = "gemini-2.5-flash", apiKey = BuildConfig.GEMINI_API_KEY)
+
+                val apiKey = configRepository.obtenerApiKeyGemini()
+                if (apiKey.isEmpty()) {
+                    _tipDelDia.value = "La hidratación y el buen descanso son pilares fundamentales de la salud."
+                    return
+                }
+
+                val generativeModel = GenerativeModel(modelName = "gemini-2.5-flash", apiKey = apiKey)
                 val prompt = """
                     Genera un JSON con un array de 30 tips médicos y nutricionales muy cortos (máximo 15 palabras por tip).
                     Deben ser variados y estar estrictamente adaptados para un paciente con estas patologías: $patologias.
