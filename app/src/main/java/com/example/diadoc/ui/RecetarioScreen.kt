@@ -10,18 +10,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,14 +54,23 @@ fun RecetarioScreen(
 
     var recetaAEliminar by remember { mutableStateOf<RecetaPersonalizada?>(null) }
 
+    // Estado: Filtro Dual (IA vs Manuales)
+    var tabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Mis Recetas", "Sugeridas por IA")
+
     val backgroundColor = Color(0xFF121214)
     val cardColor = Color(0xFF1E1E24)
     val primaryColor = MaterialTheme.colorScheme.primary
 
-    val categorias = listOf("Todas", "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena", "Personalizada")
+    val categorias = listOf("Todas", "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
 
     LaunchedEffect(uid) {
         viewModel.cargarRecetas(uid)
+    }
+
+    // FILTRADO LOCAL REACTIVO
+    val recetasFiltradas = recetas.filter { receta ->
+        if (tabIndex == 0) !receta.origenIA else receta.origenIA
     }
 
     Scaffold(
@@ -101,9 +113,43 @@ fun RecetarioScreen(
                 singleLine = true
             )
 
-            // Pestañas (Tabs) de Categorías
+            TabRow(
+                selectedTabIndex = tabIndex,
+                containerColor = backgroundColor,
+                contentColor = primaryColor,
+                indicator = { tabPositions ->
+                    if (tabIndex < tabPositions.size) {
+                        TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
+                            color = primaryColor,
+                            height = 3.dp
+                        )
+                    }
+                },
+                divider = {
+                    HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
+                }
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = tabIndex == index,
+                        onClick = { tabIndex = index },
+                        text = {
+                            Text(
+                                text = title,
+                                fontWeight = if (tabIndex == index) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 15.sp
+                            )
+                        },
+                        selectedContentColor = primaryColor,
+                        unselectedContentColor = Color.Gray
+                    )
+                }
+            }
+
+            // Pestañas (Chips) de Categorías
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(categorias) { cat ->
@@ -126,33 +172,40 @@ fun RecetarioScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             // Contenido Principal
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = primaryColor)
                 }
-            } else if (recetas.isEmpty()) {
+            } else if (recetasFiltradas.isEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(64.dp))
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        if (searchQuery.isNotEmpty()) "No hay resultados para tu búsqueda." else "Aún no tienes recetas.",
+                        text = if (searchQuery.isNotEmpty()) {
+                            "No hay resultados para tu búsqueda."
+                        } else if (tabIndex == 0) {
+                            "Aún no tienes recetas manuales."
+                        } else {
+                            "Aún no hay sugerencias de IA."
+                        },
                         color = Color.Gray,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     if (searchQuery.isEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Guarda platos de tu IA o crea los tuyos.",
+                            text = if (tabIndex == 0) "Crea tus propias recetas para verlas aquí." else "Genera tu plan diario para obtener sugerencias.",
                             color = Color.DarkGray,
                             fontSize = 14.sp,
-                            fontStyle = FontStyle.Italic
+                            fontStyle = FontStyle.Italic,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -162,7 +215,7 @@ fun RecetarioScreen(
                     contentPadding = PaddingValues(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(recetas, key = { it.codReceta }) { receta ->
+                    items(recetasFiltradas, key = { it.codReceta }) { receta ->
                         TarjetaRecetaAvanzada(
                             receta = receta,
                             cardColor = cardColor,

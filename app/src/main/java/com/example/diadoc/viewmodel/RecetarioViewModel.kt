@@ -116,6 +116,7 @@ class RecetarioViewModel(
     fun guardarRecetaManual(
         codUsuario: String,
         nombre: String,
+        tipoComida: String,
         instrucciones: String,
         kcal: Double,
         prot: Double,
@@ -128,8 +129,8 @@ class RecetarioViewModel(
                 codReceta = "",
                 codUsuario = codUsuario,
                 nombreReceta = nombre,
+                tipoComida = tipoComida,
                 instruccionesReceta = instrucciones,
-                tipoComida = "Personalizada",
                 origenIA = false,
                 guardadaDefinitiva = true,
                 fechaExpiracion = null,

@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,7 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
@@ -23,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -34,8 +38,9 @@ import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.example.diadoc.viewmodel.RecetarioViewModel
+import java.util.UUID
 
-// --- Modelos de datos visuales (Respetando el diseño de Carlos) ---
+// --- Modelos de datos visuales ---
 data class IngredienteReceta(
     val id: String,
     val nombre: String,
@@ -46,24 +51,39 @@ data class IngredienteReceta(
     val gras: Int
 )
 
+data class PasoPreparacion(
+    val id: String = UUID.randomUUID().toString(),
+    val texto: String = "",
+    val enEdicion: Boolean = true
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrearRecetaScreen(
-    uid: String, // <-- Inyectado
-    recetarioViewModel: RecetarioViewModel, // <-- Inyectado
-    catalogoViewModel: CatalogoAlimentosViewModel, // <-- Inyectado (Para búsqueda)
+    uid: String,
+    recetarioViewModel: RecetarioViewModel,
+    catalogoViewModel: CatalogoAlimentosViewModel,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
 
-    // Estados de los campos
+    // Estados de los campos básicos
     var nombreReceta by remember { mutableStateOf("") }
     var porciones by remember { mutableStateOf("") }
 
-    // Lista mutable
+    var tipoComidaSeleccionada by remember { mutableStateOf("Desayuno") }
+    val tiposDeComida = listOf(
+        "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena"
+    )
+
+    // Lista mutable de ingredientes
     val ingredientes = remember { mutableStateListOf<IngredienteReceta>() }
 
-    // Estados para el Buscador de Alimentos Inteligente (Lo que pediste replicar)
+    // Lista mutable interactiva para los pasos de preparación
+    val pasosPreparacion = remember { mutableStateListOf(PasoPreparacion()) }
+    val ordinales = listOf("primer", "segundo", "tercer", "cuarto", "quinto", "sexto", "séptimo", "octavo", "noveno", "décimo")
+
+    // Estados para el "Buscador de Alimentos Inteligente"
     var showFoodSelector by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     var foodSearchQuery by remember { mutableStateOf("") }
@@ -77,17 +97,17 @@ fun CrearRecetaScreen(
 
     val cantPorciones = porciones.toIntOrNull()?.coerceAtLeast(1) ?: 1
 
-    val totalKcal = ingredientes.sumOf { it.kcal } / cantPorciones
-    val totalProt = ingredientes.sumOf { it.prot } / cantPorciones
-    val totalCarb = ingredientes.sumOf { it.carb } / cantPorciones
-    val totalGras = ingredientes.sumOf { it.gras } / cantPorciones
+    val totalKcal = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.kcal } / cantPorciones else 0
+    val totalProt = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.prot } / cantPorciones else 0
+    val totalCarb = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.carb } / cantPorciones else 0
+    val totalGras = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.gras } / cantPorciones else 0
 
-    val puedeGuardar = ingredientes.size >= 2 && nombreReceta.isNotBlank()
+    val puedeGuardar = ingredientes.size >= 2 && nombreReceta.isNotBlank() && porciones.isNotBlank()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mis Recetas y Alimentos", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("Mis Recetas", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -148,6 +168,32 @@ fun CrearRecetaScreen(
                             )
                         )
 
+                        Text("Categoría:", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            tiposDeComida.forEach { tipo ->
+                                val isSelected = tipoComidaSeleccionada == tipo
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(if (isSelected) primaryColor else Color.DarkGray)
+                                        .clickable { tipoComidaSeleccionada = tipo }
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = tipo,
+                                        color = if (isSelected) Color.Black else Color.LightGray,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        }
+
                         OutlinedTextField(
                             value = porciones,
                             onValueChange = { porciones = it },
@@ -182,7 +228,7 @@ fun CrearRecetaScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                         Text("• ", color = primaryColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                         Text("${ingrediente.nombre} (${ingrediente.cantidad})", color = Color.White, fontSize = 15.sp)
                                     }
@@ -204,12 +250,97 @@ fun CrearRecetaScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("AGREGAR INGREDIENTE DEL CATÁLOGO", fontWeight = FontWeight.SemiBold)
+                            Text("AGREGAR INGREDIENTE", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
 
-                // --- BLOQUE 3: VALORES  ---
+                // --- BLOQUE 3: PASOS DE PREPARACIÓN ---
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("PASOS DE PREPARACIÓN:", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+                        pasosPreparacion.forEachIndexed { index, paso ->
+                            val sugerenciaOrdinal = if (index < ordinales.size) {
+                                "Agregue el ${ordinales[index]} paso"
+                            } else {
+                                "Agregue el paso ${index + 1}"
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.Top,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${index + 1}.",
+                                    color = primaryColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(top = 14.dp, end = 8.dp)
+                                )
+
+                                OutlinedTextField(
+                                    value = paso.texto,
+                                    onValueChange = { nuevoValor -> pasosPreparacion[index] = paso.copy(texto = nuevoValor) },
+                                    placeholder = { Text(sugerenciaOrdinal, color = Color.Gray) },
+                                    readOnly = !paso.enEdicion,
+                                    modifier = Modifier.weight(1f),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = if (paso.enEdicion) primaryColor else Color.DarkGray,
+                                        unfocusedBorderColor = Color.DarkGray,
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = if (paso.enEdicion) Color.White else Color.LightGray
+                                    )
+                                )
+
+                                Row(modifier = Modifier.padding(top = 8.dp, start = 4.dp)) {
+                                    if (paso.enEdicion) {
+                                        IconButton(
+                                            onClick = { pasosPreparacion[index] = paso.copy(enEdicion = false) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = "Guardar", tint = primaryColor)
+                                        }
+                                    } else {
+                                        IconButton(
+                                            onClick = { pasosPreparacion[index] = paso.copy(enEdicion = true) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(Icons.Default.Edit, contentDescription = "Modificar", tint = Color.Gray)
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { pasosPreparacion.removeAt(index) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color(0xFFFF4D4D))
+                                    }
+                                }
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { pasosPreparacion.add(PasoPreparacion()) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.DarkGray)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("AGREGAR PASO", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                // --- BLOQUE 4: VALORES CALCULADOS ---
                 Text("VALORES POR PORCIÓN (Calculados)", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
 
                 Card(
@@ -232,7 +363,7 @@ fun CrearRecetaScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // --- REGLA INFO (Respetando diseño inferior que borré antes) ---
+                // --- REGLA INFO ---
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -255,19 +386,28 @@ fun CrearRecetaScreen(
 
                 Button(
                     onClick = {
+                        // Extracción dinámica de los pasos para guardarlos en Firebase
+                        val pasosValidos = pasosPreparacion.filter { it.texto.isNotBlank() }
+                        val textoPasos = if (pasosValidos.isNotEmpty()) {
+                            pasosValidos.mapIndexed { i, paso -> "${i + 1}. ${paso.texto}" }.joinToString("\n")
+                        } else {
+                            "(Sin especificar)"
+                        }
+
                         val textoInstrucciones = "Rinde: $porciones porciones.\n\nIngredientes agregados:\n" +
                                 ingredientes.joinToString("\n") { "• ${it.nombre} (${it.cantidad})" } +
-                                "\n\nPasos de preparación:\n(Sin especificar)"
+                                "\n\nPasos de preparación:\n$textoPasos"
 
                         recetarioViewModel.guardarRecetaManual(
                             codUsuario = uid,
                             nombre = nombreReceta,
+                            tipoComida = tipoComidaSeleccionada,
                             instrucciones = textoInstrucciones,
                             kcal = totalKcal.toDouble(),
                             prot = totalProt.toDouble(),
                             carb = totalCarb.toDouble(),
                             onSuccess = {
-                                Toast.makeText(context, "¡Receta '$nombreReceta' guardada en Firebase!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "¡Receta '$nombreReceta' guardada!", Toast.LENGTH_SHORT).show()
                                 onNavigateBack()
                             }
                         )
