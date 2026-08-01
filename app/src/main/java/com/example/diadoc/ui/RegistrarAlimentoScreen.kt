@@ -1,7 +1,12 @@
 package com.example.diadoc.ui
 
+import android.graphics.Bitmap
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,11 +16,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +32,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,39 +42,28 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-// 1. CLASE RESTAURADA (Soluciona los errores de tipos y listas)
-data class AlimentoReciente(
-    val id: String,
-    val nombre: String,
-    val esManual: Boolean
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistrarAlimentoScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: CatalogoAlimentosViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    // Inicialización del escáner y la corrutina para llamados de red
     val scanner = remember { GmsBarcodeScanning.getClient(context) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Estados para los campos de carga manual
+    val alimentosRecientes by viewModel.alimentos.collectAsState()
+    val alimentoIA by viewModel.alimentoIA.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // Estados para los campos manuales y edición
+    var idEnEdicion by remember { mutableStateOf<String?>(null) }
     var nombreAlimento by remember { mutableStateOf("") }
     var calorias by remember { mutableStateOf("") }
     var grasas by remember { mutableStateOf("") }
     var carbohidratos by remember { mutableStateOf("") }
     var proteinas by remember { mutableStateOf("") }
-
-    // Lista mutable simulando "Mi Despensa (Recientes)"
-    val alimentosRecientes = remember {
-        mutableStateListOf(
-            AlimentoReciente("1", "Leche Descremada (La Serenísima)", esManual = false),
-            AlimentoReciente("2", "Galletas de Arroz", esManual = false),
-            AlimentoReciente("3", "Mi Granola Casera (Manual)", esManual = true)
-        )
-    }
 
     val backgroundColor = Color(0xFF121214)
     val cardColor = Color(0xFF1E1E24)
@@ -77,10 +73,33 @@ fun RegistrarAlimentoScreen(
     val camposCompletos = nombreAlimento.isNotBlank() && calorias.isNotBlank() &&
             grasas.isNotBlank() && carbohidratos.isNotBlank() && proteinas.isNotBlank()
 
+    LaunchedEffect(alimentoIA) {
+        alimentoIA?.let {
+            idEnEdicion = null
+            nombreAlimento = it.nombreAlimento
+            calorias = it.kcalBase.toString()
+            grasas = it.grasasBase.toString()
+            carbohidratos = it.carbohidratosBase.toString()
+            proteinas = it.proteinasBase.toString()
+            viewModel.limpiarAlimentoIA()
+            Toast.makeText(context, "Análisis de IA completado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            Toast.makeText(context, "Analizando imagen...", Toast.LENGTH_SHORT).show()
+            viewModel.analizarImagenConIA(bitmap)
+        } else {
+            Toast.makeText(context, "Captura cancelada", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
+        containerColor = backgroundColor,
         topBar = {
             TopAppBar(
-                title = { Text("Mis Alimentos y Recetas", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("Mis Alimentos", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -97,7 +116,6 @@ fun RegistrarAlimentoScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor)
                 .padding(paddingValues)
         ) {
             Column(
@@ -109,7 +127,6 @@ fun RegistrarAlimentoScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                // --- SECCIÓN 1: AÑADIR NUEVO ALIMENTO (QR) ---
                 Text(
                     text = "AÑADIR NUEVO ALIMENTO",
                     color = Color.LightGray,
@@ -119,87 +136,99 @@ fun RegistrarAlimentoScreen(
                     textAlign = TextAlign.Start
                 )
 
-                Button(
-                    onClick = {
-                        scanner.startScan()
-                            .addOnSuccessListener { barcode ->
-                                val codigoEscaneado = barcode.rawValue ?: ""
-
-                                if (codigoEscaneado.contains(",")) {
-                                    try {
-                                        val partes = codigoEscaneado.split(",")
-                                        nombreAlimento = partes[0].trim()
-                                        calorias = partes[1].trim()
-                                        grasas = partes[2].trim()
-                                        carbohidratos = partes[3].trim()
-                                        proteinas = partes[4].trim()
-                                        Toast.makeText(context, "Alimento importado con éxito", Toast.LENGTH_SHORT).show()
-                                    } catch (_: Exception) {
-                                        Toast.makeText(context, "Formato QR no compatible", Toast.LENGTH_LONG).show()
-                                    }
-                                } else {
-                                    Toast.makeText(context, "Buscando en la base de datos...", Toast.LENGTH_SHORT).show()
-
-                                    coroutineScope.launch(Dispatchers.IO) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            scanner.startScan()
+                                .addOnSuccessListener { barcode ->
+                                    val codigoEscaneado = barcode.rawValue ?: ""
+                                    if (codigoEscaneado.contains(",")) {
                                         try {
-                                            val url = URL("https://world.openfoodfacts.org/api/v0/product/$codigoEscaneado.json")
-                                            val connection = url.openConnection() as HttpURLConnection
-                                            connection.requestMethod = "GET"
+                                            val partes = codigoEscaneado.split(",")
+                                            idEnEdicion = null
+                                            nombreAlimento = partes[0].trim()
+                                            calorias = partes[1].trim()
+                                            grasas = partes[2].trim()
+                                            carbohidratos = partes[3].trim()
+                                            proteinas = partes[4].trim()
+                                            Toast.makeText(context, "Alimento importado con éxito", Toast.LENGTH_SHORT).show()
+                                        } catch (_: Exception) {
+                                            Toast.makeText(context, "Formato QR no compatible", Toast.LENGTH_LONG).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Buscando en la base de datos...", Toast.LENGTH_SHORT).show()
 
-                                            if (connection.responseCode == 200) {
-                                                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                                                val jsonObject = JSONObject(response)
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            try {
+                                                val url = URL("https://world.openfoodfacts.org/api/v0/product/$codigoEscaneado.json")
+                                                val connection = url.openConnection() as HttpURLConnection
+                                                connection.requestMethod = "GET"
 
-                                                if (jsonObject.getInt("status") == 1) {
-                                                    val product = jsonObject.getJSONObject("product")
-                                                    val nutriments = product.optJSONObject("nutriments") ?: JSONObject()
+                                                if (connection.responseCode == 200) {
+                                                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                                                    val jsonObject = JSONObject(response)
 
-                                                    val name = product.optString("product_name", "Producto sin nombre")
-                                                    val brand = product.optString("brands", "")
+                                                    if (jsonObject.getInt("status") == 1) {
+                                                        val product = jsonObject.getJSONObject("product")
+                                                        val nutriments = product.optJSONObject("nutriments") ?: JSONObject()
 
-                                                    val kcal = nutriments.optString("energy-kcal_100g", "0")
-                                                    val fat = nutriments.optString("fat_100g", "0")
-                                                    val carbs = nutriments.optString("carbohydrates_100g", "0")
-                                                    val pro = nutriments.optString("proteins_100g", "0")
+                                                        val name = product.optString("product_name", "Producto sin nombre")
+                                                        val brand = product.optString("brands", "")
 
-                                                    withContext(Dispatchers.Main) {
-                                                        nombreAlimento = if (brand.isNotEmpty()) "$name ($brand)" else name
-                                                        calorias = kcal
-                                                        grasas = fat
-                                                        carbohidratos = carbs
-                                                        proteinas = pro
-                                                        Toast.makeText(context, "¡Producto Encontrado!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                } else {
-                                                    withContext(Dispatchers.Main) {
-                                                        Toast.makeText(context, "Producto no registrado en Open Food Facts", Toast.LENGTH_LONG).show()
+                                                        withContext(Dispatchers.Main) {
+                                                            idEnEdicion = null
+                                                            nombreAlimento = if (brand.isNotEmpty()) "$name ($brand)" else name
+                                                            calorias = nutriments.optString("energy-kcal_100g", "0")
+                                                            grasas = nutriments.optString("fat_100g", "0")
+                                                            carbohidratos = nutriments.optString("carbohydrates_100g", "0")
+                                                            proteinas = nutriments.optString("proteins_100g", "0")
+                                                            Toast.makeText(context, "¡Producto Encontrado!", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } else {
+                                                        withContext(Dispatchers.Main) {
+                                                            Toast.makeText(context, "Producto no registrado", Toast.LENGTH_LONG).show()
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        } catch (e: Exception) {
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(context, "Error de red: revisa tu conexión", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                withContext(Dispatchers.Main) {
+                                                    Toast.makeText(context, "Error de red", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                            .addOnFailureListener { e ->
-                                Toast.makeText(context, "Escaneo cancelado: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = cardColor)
-                ) {
-                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = primaryColor)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text("ESCANEAR CÓDIGO QR / BARRAS", color = Color.White, fontWeight = FontWeight.Medium)
+                                .addOnFailureListener {
+                                    Toast.makeText(context, "Escaneo cancelado", Toast.LENGTH_SHORT).show()
+                                }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = cardColor)
+                    ) {
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = primaryColor)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("QR", color = Color.White, fontWeight = FontWeight.Medium)
+                    }
+
+                    Button(
+                        onClick = { cameraLauncher.launch(null) },
+                        modifier = Modifier.weight(1.5f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                        enabled = !isLoading
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("CÁMARA IA", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
 
-                // --- SECCIÓN 2: CARGA MANUAL ---
                 Text(
-                    text = "CARGA MANUAL (Detalles por 100g)",
+                    text = if (idEnEdicion != null) "EDITAR ALIMENTO" else "CARGA MANUAL (Detalles por 100g)",
                     color = Color.LightGray,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -293,19 +322,21 @@ fun RegistrarAlimentoScreen(
                         Button(
                             onClick = {
                                 if (camposCompletos) {
-                                    alimentosRecientes.add(
-                                        AlimentoReciente(
-                                            id = System.currentTimeMillis().toString(),
-                                            nombre = nombreAlimento,
-                                            esManual = true
-                                        )
+                                    viewModel.guardarAlimento(
+                                        codAlimento = idEnEdicion,
+                                        nombre = nombreAlimento,
+                                        kcal = calorias.toDoubleOrNull() ?: 0.0,
+                                        grasas = grasas.toDoubleOrNull() ?: 0.0,
+                                        carbohidratos = carbohidratos.toDoubleOrNull() ?: 0.0,
+                                        proteinas = proteinas.toDoubleOrNull() ?: 0.0
                                     )
-                                    // Limpiar formulario
+                                    idEnEdicion = null
                                     nombreAlimento = ""
                                     calorias = ""
                                     grasas = ""
                                     carbohidratos = ""
                                     proteinas = ""
+                                    Toast.makeText(context, "Alimento guardado", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             enabled = camposCompletos,
@@ -315,12 +346,11 @@ fun RegistrarAlimentoScreen(
                         ) {
                             Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("GUARDAR ALIMENTO", fontWeight = FontWeight.Bold)
+                            Text(if (idEnEdicion != null) "ACTUALIZAR" else "GUARDAR", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                // --- SECCIÓN 3: MI DESPENSA (RECIENTES) ---
                 Text(
                     text = "MI DESPENSA (Recientes)",
                     color = Color.LightGray,
@@ -339,38 +369,54 @@ fun RegistrarAlimentoScreen(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        alimentosRecientes.forEach { alimento ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        if (alimentosRecientes.isEmpty() && !isLoading) {
+                            Text(
+                                text = "No hay alimentos registrados.",
+                                color = Color.Gray,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        } else {
+                            alimentosRecientes.take(10).forEach { alimento ->
                                 Row(
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = if (alimento.esManual) Icons.AutoMirrored.Filled.Assignment else Icons.Default.LocalGroceryStore,
-                                        contentDescription = null,
-                                        tint = if (alimento.esManual) Color(0xFF4FC3F7) else Color(0xFFFFD54F),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = alimento.nombre,
-                                        color = Color.White,
-                                        fontSize = 14.sp
-                                    )
-                                }
-
-                                Row {
-                                    IconButton(onClick = { /* Editar */ }) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Assignment,
+                                            contentDescription = null,
+                                            tint = Color(0xFF4FC3F7),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = alimento.nombreAlimento,
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
                                     }
-                                    IconButton(onClick = { alimentosRecientes.remove(alimento) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = Color(0xFFFF5252), modifier = Modifier.size(18.dp))
+
+                                    Row {
+                                        IconButton(onClick = {
+                                            idEnEdicion = alimento.codAlimento
+                                            nombreAlimento = alimento.nombreAlimento
+                                            calorias = alimento.kcalBase.toString()
+                                            grasas = alimento.grasasBase.toString()
+                                            carbohidratos = alimento.carbohidratosBase.toString()
+                                            proteinas = alimento.proteinasBase.toString()
+                                        }) {
+                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                                        }
+                                        IconButton(onClick = { viewModel.eliminarAlimento(alimento.codAlimento) }) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = Color(0xFFFF5252), modifier = Modifier.size(18.dp))
+                                        }
                                     }
                                 }
                             }
@@ -378,7 +424,6 @@ fun RegistrarAlimentoScreen(
                     }
                 }
 
-                // --- NOTA INFORMATIVA INFERIOR ---
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -399,6 +444,38 @@ fun RegistrarAlimentoScreen(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal
                     )
+                }
+            }
+
+            // --- OVERLAY GLOBAL DE CARGA ---
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = primaryColor,
+                            strokeWidth = 4.dp,
+                            modifier = Modifier.size(50.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Procesando...",
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
             }
         }

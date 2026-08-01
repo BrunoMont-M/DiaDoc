@@ -1,5 +1,6 @@
 package com.example.diadoc.viewmodel
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.diadoc.model.Alimento
@@ -19,6 +20,9 @@ class CatalogoAlimentosViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _alimentoIA = MutableStateFlow<Alimento?>(null)
+    val alimentoIA: StateFlow<Alimento?> = _alimentoIA.asStateFlow()
+
     private var listaOriginal: List<Alimento> = emptyList()
 
     init {
@@ -29,10 +33,9 @@ class CatalogoAlimentosViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Llama al método suspendido del repositorio real
                 val listaDesdeFirebase = repository.buscarAlimentos("")
                 listaOriginal = listaDesdeFirebase
-                _alimentos.value = listaOriginal
+                _alimentos.value = listaOriginal.reversed().take(10)
             } catch (e: Exception) {
                 _alimentos.value = emptyList()
                 listaOriginal = emptyList()
@@ -44,12 +47,73 @@ class CatalogoAlimentosViewModel(
 
     fun buscarAlimentos(query: String) {
         if (query.isBlank()) {
-            _alimentos.value = listaOriginal
+            _alimentos.value = listaOriginal.reversed().take(10)
         } else {
             val queryLower = query.lowercase().trim()
             _alimentos.value = listaOriginal.filter { alimento ->
                 alimento.nombreAlimento.lowercase().contains(queryLower)
             }
         }
+    }
+
+    fun guardarAlimento(
+        codAlimento: String?,
+        nombre: String,
+        kcal: Double,
+        grasas: Double,
+        carbohidratos: Double,
+        proteinas: Double
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val alimento = Alimento(
+                    codAlimento = codAlimento ?: "",
+                    nombreAlimento = nombre,
+                    kcalBase = kcal,
+                    grasasBase = grasas,
+                    carbohidratosBase = carbohidratos,
+                    proteinasBase = proteinas
+                )
+                repository.guardarAlimento(alimento)
+                cargarAlimentos() // Refresca la lista después de guardar
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun eliminarAlimento(codAlimento: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                repository.eliminarAlimento(codAlimento)
+                cargarAlimentos() // Refresca la lista después de borrar
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun analizarImagenConIA(bitmap: Bitmap) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val resultado = repository.analizarAlimentoConIA(bitmap)
+                _alimentoIA.value = resultado
+            } catch (e: Exception) {
+                _alimentoIA.value = null
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun limpiarAlimentoIA() {
+        _alimentoIA.value = null
     }
 }
