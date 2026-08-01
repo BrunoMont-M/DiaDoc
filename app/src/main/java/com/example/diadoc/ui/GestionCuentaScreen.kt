@@ -17,14 +17,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.GestionCuentaViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -51,6 +52,9 @@ fun GestionCuentaScreen(
     var mostrarDialogoReauthEliminar by remember { mutableStateOf(false) }
     var passParaEliminar by remember { mutableStateOf("") }
 
+    val alertDanger = DiaDocTheme.colors.alertDanger
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     LaunchedEffect(estadoAccion) {
         when (estadoAccion) {
             is Resource.Success -> {
@@ -76,12 +80,13 @@ fun GestionCuentaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gestión de Cuenta", fontWeight = FontWeight.Bold) },
+                title = { Text("Gestión de Cuenta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { paddingValues ->
@@ -101,15 +106,15 @@ fun GestionCuentaScreen(
                 colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Correo Electrónico Vinculado", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                    Text("Correo Electrónico Vinculado", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(correoActual, fontSize = 16.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    Text(correoActual, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
             }
 
             // Formulario de Cambio de Contraseña
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Cambiar Contraseña", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
+                Text("Cambiar Contraseña", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
@@ -156,23 +161,22 @@ fun GestionCuentaScreen(
                 )
 
                 if (passNueva.isNotEmpty() && passConfirmacion.isNotEmpty() && passNueva != passConfirmacion) {
-                    Text("Las contraseñas no coinciden.", color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(start = 16.dp, top = 4.dp))
+                    Text("Las contraseñas no coinciden.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 16.dp, top = 4.dp))
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Button(
+                DiaDocButton(
+                    text = "ACTUALIZAR CONTRASEÑA",
+                    icon = rememberVectorPainter(Icons.Default.Lock),
                     onClick = { viewModel.cambiarPassword(passActual, passNueva) },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
                     enabled = passActual.isNotEmpty() && passNueva.length >= 6 && passNueva == passConfirmacion && estadoAccion !is Resource.Loading
-                ) {
-                    if (estadoAccion is Resource.Loading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    } else {
-                        Icon(Icons.Default.Lock, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("ACTUALIZAR CONTRASEÑA", fontWeight = FontWeight.Bold)
+                )
+
+                if (estadoAccion is Resource.Loading) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                     }
                 }
             }
@@ -183,23 +187,23 @@ fun GestionCuentaScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFFEBEE), RoundedCornerShape(16.dp))
+                    .background(alertDanger.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFD32F2F))
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = alertDanger)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Zona de Peligro", fontWeight = FontWeight.Black, color = Color(0xFFD32F2F), fontSize = 18.sp)
+                    Text("Zona de Peligro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = alertDanger)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Eliminar tu cuenta borrará permanentemente todos tus datos médicos, recetas, historial y acceso. Esta acción no se puede deshacer.", fontSize = 14.sp, color = Color(0xFFB71C1C))
+                Text("Eliminar tu cuenta borrará permanentemente todos tus datos médicos, recetas, historial y acceso. Esta acción no se puede deshacer.", style = MaterialTheme.typography.bodyMedium, color = alertDanger)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(
                     onClick = { mostrarDialogoConfirmacionEliminar = true },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F))
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = alertDanger)
                 ) {
                     Text("ELIMINAR MI CUENTA", fontWeight = FontWeight.Bold)
                 }
@@ -211,15 +215,16 @@ fun GestionCuentaScreen(
         if (mostrarDialogoConfirmacionEliminar) {
             AlertDialog(
                 onDismissRequest = { mostrarDialogoConfirmacionEliminar = false },
-                title = { Text("¿Eliminar cuenta definitivamente?", fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F)) },
-                text = { Text("Perderás todo tu progreso en DiaDoc. Si estás seguro, presiona Continuar para verificar tu identidad.") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("¿Eliminar cuenta definitivamente?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = alertDanger) },
+                text = { Text("Perderás todo tu progreso en DiaDoc. Si estás seguro, presiona Continuar para verificar tu identidad.", style = MaterialTheme.typography.bodyMedium) },
                 confirmButton = {
                     Button(
                         onClick = {
                             mostrarDialogoConfirmacionEliminar = false
                             mostrarDialogoReauthEliminar = true
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                        colors = ButtonDefaults.buttonColors(containerColor = alertDanger)
                     ) {
                         Text("Continuar")
                     }
@@ -237,10 +242,11 @@ fun GestionCuentaScreen(
                     mostrarDialogoReauthEliminar = false
                     passParaEliminar = ""
                 },
-                title = { Text("Verifica tu Identidad") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("Verifica tu Identidad", style = MaterialTheme.typography.titleMedium) },
                 text = {
                     Column {
-                        Text("Por seguridad, ingresa tu contraseña actual para confirmar la eliminación de tu cuenta.")
+                        Text("Por seguridad, ingresa tu contraseña actual para confirmar la eliminación de tu cuenta.", style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedTextField(
                             value = passParaEliminar,
@@ -260,7 +266,7 @@ fun GestionCuentaScreen(
                             viewModel.eliminarCuenta(passParaEliminar)
                             passParaEliminar = ""
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                        colors = ButtonDefaults.buttonColors(containerColor = alertDanger),
                         enabled = passParaEliminar.isNotEmpty() && estadoAccion !is Resource.Loading
                     ) {
                         Text("Eliminar Definitivamente")

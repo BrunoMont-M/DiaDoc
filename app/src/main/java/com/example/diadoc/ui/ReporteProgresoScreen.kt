@@ -21,7 +21,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.ReporteProgresoViewModel
 import com.example.diadoc.utils.PdfManager
 import com.patrykandpatrick.vico.compose.chart.Chart
@@ -57,6 +58,9 @@ fun ReporteProgresoScreen(
 
     val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val alertDanger = DiaDocTheme.colors.alertDanger
+
     val datePickerDesde = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
@@ -88,7 +92,7 @@ fun ReporteProgresoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reportes y Estadísticas", fontWeight = FontWeight.Bold) },
+                title = { Text("Reportes y Estadísticas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -107,7 +111,7 @@ fun ReporteProgresoScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // --- BLOQUE 1: SELECCIÓN DE FECHAS ---
-            Text("FILTRAR POR FECHAS", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color.Gray)
+            Text("FILTRAR POR FECHAS", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, color = onSurfaceVariant)
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(modifier = Modifier.weight(1f).clickable { datePickerDesde.show() }) {
@@ -123,7 +127,7 @@ fun ReporteProgresoScreen(
                             disabledTextColor = MaterialTheme.colorScheme.onSurface,
                             disabledBorderColor = MaterialTheme.colorScheme.outline,
                             disabledTrailingIconColor = MaterialTheme.colorScheme.primary,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            disabledLabelColor = onSurfaceVariant
                         )
                     )
                 }
@@ -140,26 +144,23 @@ fun ReporteProgresoScreen(
                             disabledTextColor = MaterialTheme.colorScheme.onSurface,
                             disabledBorderColor = MaterialTheme.colorScheme.outline,
                             disabledTrailingIconColor = MaterialTheme.colorScheme.primary,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            disabledLabelColor = onSurfaceVariant
                         )
                     )
                 }
             }
 
-            Button(
+            DiaDocButton(
+                text = "GENERAR REPORTE",
                 onClick = { viewModel.generarReporte(uid, fechaDesdeMilis, fechaHastaMilis) },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("GENERAR REPORTE", fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
 
             if (error != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.WarningAmber, contentDescription = null, tint = Color.Red, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.WarningAmber, contentDescription = null, tint = alertDanger, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(error!!, color = Color.Red, fontSize = 14.sp)
+                    Text(error!!, color = alertDanger, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
@@ -171,35 +172,35 @@ fun ReporteProgresoScreen(
             } else if (totalRegistros > 0 || adherenciaDieta > 0f) {
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text("TENDENCIA DE GLUCEMIA", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color.Gray)
+                Text("TENDENCIA DE GLUCEMIA", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, color = onSurfaceVariant)
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("mg/dL", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
+                        Text("mg/dL", style = MaterialTheme.typography.labelSmall, color = onSurfaceVariant, modifier = Modifier.align(Alignment.End))
                         Spacer(modifier = Modifier.height(8.dp))
 
                         if (tendenciaGlucosa.size > 1) {
                             val chartEntryModel = entryModelOf(*tendenciaGlucosa.toTypedArray())
                             Chart(
                                 chart = lineChart(
-                                    lines = listOf(lineSpec(lineColor = Color(0xFFE53935)))
+                                    lines = listOf(lineSpec(lineColor = alertDanger))
                                 ),
                                 model = chartEntryModel,
                                 modifier = Modifier.height(150.dp).fillMaxWidth()
                             )
                         } else if (tendenciaGlucosa.size == 1) {
-                            Text("Valor único registrado: ${tendenciaGlucosa[0]} mg/dL. Registra más datos para ver la tendencia.", color = Color.Gray, fontStyle = FontStyle.Italic, fontSize = 14.sp)
+                            Text("Valor único registrado: ${tendenciaGlucosa[0]} mg/dL. Registra más datos para ver la tendencia.", color = onSurfaceVariant, fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium)
                         } else {
-                            Text("No hay datos de glucosa en este rango.", color = Color.Gray, fontStyle = FontStyle.Italic, fontSize = 14.sp)
+                            Text("No hay datos de glucosa en este rango.", color = onSurfaceVariant, fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("RESUMEN DE ADHERENCIA", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color.Gray)
+                Text("RESUMEN DE ADHERENCIA", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, color = onSurfaceVariant)
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -207,20 +208,21 @@ fun ReporteProgresoScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Dieta: ${(adherenciaDieta * 100).toInt()}% Cumplido", fontWeight = FontWeight.SemiBold)
-                            Text("Ejercicios: ${(adherenciaEjercicio * 100).toInt()}% Hecho", fontWeight = FontWeight.SemiBold)
+                            Text("Dieta: ${(adherenciaDieta * 100).toInt()}% Cumplido", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Ejercicios: ${(adherenciaEjercicio * 100).toInt()}% Hecho", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Promedio: ${promedioGlucosa.toInt()} mg/dL", color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
-                            Text("Registros Totales: $totalRegistros", color = Color.Gray)
+                            Text("Promedio: ${promedioGlucosa.toInt()} mg/dL", color = alertDanger, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Registros Totales: $totalRegistros", style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant)
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
                 OutlinedButton(
                     onClick = {
                         PdfManager.generarReporteProgresoPDF(
@@ -234,15 +236,17 @@ fun ReporteProgresoScreen(
                         )
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, alertDanger),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = alertDanger)
                 ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = Color(0xFFD32F2F))
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("DESCARGAR COMO PDF", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                    Text("DESCARGAR COMO PDF", fontWeight = FontWeight.Bold)
                 }
             } else if (fechaDesdeMilis != null && fechaHastaMilis != null && !isLoading && error == null) {
                 Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                    Text("No se encontraron registros en el rango seleccionado.", color = Color.Gray, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center)
+                    Text("No se encontraron registros en el rango seleccionado.", color = onSurfaceVariant, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 

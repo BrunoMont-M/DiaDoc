@@ -17,17 +17,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.PerfilMedico
+import com.example.diadoc.ui.components.DiaDocButton
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -146,7 +146,7 @@ fun PerfilMedicoScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Configurar Perfil Médico", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text("Configurar Perfil Médico", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -265,9 +265,9 @@ fun PerfilMedicoScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text("Patologías Base", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                Text("Patologías Base", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                 if (patologias.isEmpty()) {
-                    Text("Cargando opciones o ninguna registrada...", style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
+                    Text("Cargando opciones o ninguna registrada...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.Start))
                 }
                 patologias.forEach { patologia ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -278,12 +278,12 @@ fun PerfilMedicoScreen(
                                 else patologiasSeleccionadas.remove(patologia.codPatologia)
                             }
                         )
-                        Text(text = patologia.nombreEnfermedad)
+                        Text(text = patologia.nombreEnfermedad, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Checkbox(checked = checkOtraPatologia, onCheckedChange = { checkOtraPatologia = it })
-                    Text(text = "Otra patología no listada...")
+                    Text(text = "Otra patología no listada...", style = MaterialTheme.typography.bodyMedium)
                 }
                 if (checkOtraPatologia) {
                     OutlinedTextField(
@@ -297,9 +297,9 @@ fun PerfilMedicoScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Restricciones Alimentarias", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                Text("Restricciones Alimentarias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                 if (restricciones.isEmpty()) {
-                    Text("Cargando opciones o ninguna registrada...", style = MaterialTheme.typography.bodySmall, color = Color.Gray, modifier = Modifier.align(Alignment.Start))
+                    Text("Cargando opciones o ninguna registrada...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.Start))
                 }
                 restricciones.forEach { restriccion ->
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -310,12 +310,12 @@ fun PerfilMedicoScreen(
                                 else restriccionesSeleccionadas.remove(restriccion.codRestricc)
                             }
                         )
-                        Text(text = restriccion.nombreRestricc)
+                        Text(text = restriccion.nombreRestricc, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Checkbox(checked = checkOtraRestriccion, onCheckedChange = { checkOtraRestriccion = it })
-                    Text(text = "Otra restricción no listada...")
+                    Text(text = "Otra restricción no listada...", style = MaterialTheme.typography.bodyMedium)
                 }
                 if (checkOtraRestriccion) {
                     OutlinedTextField(
@@ -343,7 +343,9 @@ fun PerfilMedicoScreen(
                 if (saveState is Resource.Loading) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 } else {
-                    Button(
+                    DiaDocButton(
+                        text = "GUARDAR Y CONTINUAR",
+                        icon = rememberVectorPainter(Icons.Default.Save),
                         onClick = {
                             val perfilFormulario = PerfilMedico(
                                 codPerfil = perfilExistente?.codPerfil ?: "",
@@ -362,11 +364,8 @@ fun PerfilMedicoScreen(
                                 nuevaRestriccionTexto = if (checkOtraRestriccion) nuevaRestriccionTexto else ""
                             )
                         },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(25.dp)
-                    ) {
-                        Text("GUARDAR Y CONTINUAR", fontWeight = FontWeight.Bold)
-                    }
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    )
                 }
                 Spacer(modifier = Modifier.height(80.dp))
             }

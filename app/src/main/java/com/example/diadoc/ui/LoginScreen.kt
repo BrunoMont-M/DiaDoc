@@ -19,7 +19,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.components.DiaDocButton
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.AuthViewModel
 
@@ -66,7 +66,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(text = "Iniciar Sesión", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp), color = MaterialTheme.colorScheme.onBackground)
+            Text(text = "Iniciar Sesión", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
             Text(text = "Tu salud bajo control, siempre", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
         }
 
@@ -94,7 +94,7 @@ fun LoginScreen(
         )
 
         TextButton(onClick = { viewModel.recuperarPassword(email) }, modifier = Modifier.align(Alignment.End)) {
-            Text(text = "¿Olvidaste tu contraseña?", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+            Text(text = "¿Olvidaste tu contraseña?", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -104,10 +104,11 @@ fun LoginScreen(
         if (loginState is Resource.Loading) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         } else {
-            Button(
+            DiaDocButton(
+                text = "INICIAR SESIÓN",
                 onClick = { viewModel.login(email, password) },
-                modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(25.dp)
-            ) { Text("INICIAR SESIÓN", fontWeight = FontWeight.Bold) }
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            )
         }
 
         if (loginState is Resource.Error) {

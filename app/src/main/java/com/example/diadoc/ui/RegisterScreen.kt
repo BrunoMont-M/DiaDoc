@@ -18,7 +18,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.components.DiaDocButton
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.AuthViewModel
 
@@ -67,7 +67,8 @@ fun RegisterScreen(
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Registrarse",
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
@@ -136,16 +137,11 @@ fun RegisterScreen(
         if (state is Resource.Loading) {
             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         } else {
-            Button(
+            DiaDocButton(
+                text = "REGISTRARME",
                 onClick = { viewModel.register(email, password, nombre) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("REGISTRARME", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-            }
+                modifier = Modifier.fillMaxWidth().height(50.dp)
+            )
         }
 
         if (state is Resource.Error) {
@@ -162,7 +158,7 @@ fun RegisterScreen(
         TextButton(onClick = onBackToLogin) {
             Text(
                 text = "¿Ya tenés una cuenta? Iniciá sesión",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
         }

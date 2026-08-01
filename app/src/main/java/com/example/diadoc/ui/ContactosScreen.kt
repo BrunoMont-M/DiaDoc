@@ -10,11 +10,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.diadoc.model.ContactoEmergencia
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.ContactosViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,12 +40,13 @@ fun ContactosScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Red de Contención") },
+                title = { Text("Red de Contención", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
             )
         }
     ) { paddingValues ->
@@ -54,7 +56,7 @@ fun ContactosScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            Text("AÑADIR NUEVO CONTACTO", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text("AÑADIR NUEVO CONTACTO", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
@@ -68,7 +70,7 @@ fun ContactosScreen(
             OutlinedTextField(
                 value = vinculo,
                 onValueChange = { vinculo = it },
-                label = { Text("Vínculo") },
+                label = { Text("Vínculo (Ej. Madre, Hermano)") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -84,7 +86,8 @@ fun ContactosScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
+            DiaDocButton(
+                text = if (contactoEditando != null) "GUARDAR CAMBIOS" else "AGREGAR CONTACTO",
                 onClick = {
                     viewModel.guardarContacto(uid, nombre, vinculo, telefono, contactoEditando?.codContacto ?: "")
                     if (!errorTelefono) {
@@ -93,30 +96,30 @@ fun ContactosScreen(
                         telefono = ""
                         contactoEditando = null
                     }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (contactoEditando != null) "GUARDAR CAMBIOS" else "[+] AGREGAR CONTACTO")
-            }
+                }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
-            Divider()
+            HorizontalDivider() // Actualizado a HorizontalDivider (Material 3)
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("MIS CONTACTOS DE EMERGENCIA", fontWeight = FontWeight.Bold)
+            Text("MIS CONTACTOS DE EMERGENCIA", style = MaterialTheme.typography.labelLarge)
             Spacer(modifier = Modifier.height(8.dp))
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(contactos) { contacto ->
-                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
                         Row(
                             modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text("${contacto.nombreContacto} (${contacto.vinculo})", fontWeight = FontWeight.Bold)
-                                Text(contacto.telefono, color = Color.Gray)
+                                Text("${contacto.nombreContacto} (${contacto.vinculo})", style = MaterialTheme.typography.titleMedium)
+                                Text(contacto.telefono, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Row {
                                 TextButton(onClick = {
@@ -125,8 +128,9 @@ fun ContactosScreen(
                                     telefono = contacto.telefono
                                     contactoEditando = contacto
                                 }) { Text("Editar") }
+
                                 TextButton(onClick = { viewModel.eliminarContacto(contacto.codContacto, uid) }) {
-                                    Text("Eliminar", color = Color.Red)
+                                    Text("Eliminar", color = DiaDocTheme.colors.alertDanger, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -138,7 +142,7 @@ fun ContactosScreen(
             Text(
                 "[i] Estos contactos recibirán un SMS con tu ubicación exacta si presionas el botón S.O.S.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

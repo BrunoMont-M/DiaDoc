@@ -16,9 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.theme.DiaDocTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,25 +27,23 @@ fun NutricionMenuScreen(
     onNavigateToCrearReceta: () -> Unit,
     onNavigateToRecetario: () -> Unit
 ) {
-    val backgroundColor = Color(0xFF121214)
-    val cardColor = Color(0xFF1E1E24)
+    // Usamos los colores semánticos del sistema
+    val moduleNutrition = DiaDocTheme.colors.moduleNutrition
     val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Módulo de Nutrición", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = backgroundColor,
-                    titleContentColor = Color.White
-                )
+                title = { Text("Módulo de Nutrición", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor)
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState()),
@@ -55,20 +52,21 @@ fun NutricionMenuScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "¿Qué deseas hacer hoy?",
-                color = Color.White,
-                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Tarjeta Principal: Plan Nutricional de Hoy
-            Card(
+            // Tarjeta Principal: Plan Nutricional de Hoy (Color Semántico de Nutrición)
+            ElevatedCard(
                 onClick = onNavigateToPlanNutricional,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = primaryColor.copy(alpha = 0.15f))
+                colors = CardDefaults.elevatedCardColors(containerColor = moduleNutrition.copy(alpha = 0.15f)),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -79,27 +77,27 @@ fun NutricionMenuScreen(
                     Icon(
                         imageVector = Icons.Default.RestaurantMenu,
                         contentDescription = null,
-                        tint = primaryColor,
+                        tint = moduleNutrition,
                         modifier = Modifier.size(40.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Mi Plan Nutricional", color = primaryColor, fontSize = 18.sp, fontWeight = FontWeight.Black)
-                        Text("Revisar tus comidas y check-in del día.", color = Color.LightGray, fontSize = 14.sp)
+                        Text("Mi Plan Nutricional", color = moduleNutrition, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+                        Text("Revisar tus comidas y check-in del día.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
-            Divider(color = Color.DarkGray, modifier = Modifier.padding(bottom = 16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(bottom = 16.dp))
 
             // Tarjeta Opción 1: Registrar Alimento
-            Card(
+            ElevatedCard(
                 onClick = onNavigateToRegistrarAlimento,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor)
+                colors = CardDefaults.elevatedCardColors(containerColor = surfaceColor)
             ) {
                 Row(
                     modifier = Modifier
@@ -115,20 +113,20 @@ fun NutricionMenuScreen(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Registrar Alimento", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Carga manual o mediante escaneo de código QR / Barras.", color = Color.Gray, fontSize = 14.sp)
+                        Text("Registrar Alimento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Carga manual o mediante escaneo de código QR / Barras.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
             // Tarjeta Opción 2: Crear Receta
-            Card(
+            ElevatedCard(
                 onClick = onNavigateToCrearReceta,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor)
+                colors = CardDefaults.elevatedCardColors(containerColor = surfaceColor)
             ) {
                 Row(
                     modifier = Modifier
@@ -144,18 +142,18 @@ fun NutricionMenuScreen(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Crear Receta", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Armá tus platos personalizados sumando ingredientes y calculando macros.", color = Color.Gray, fontSize = 14.sp)
+                        Text("Crear Receta", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Armá tus platos personalizados sumando ingredientes y calculando macros.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
             // Tarjeta Opción 3: Recetario
-            Card(
+            ElevatedCard(
                 onClick = onNavigateToRecetario,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor)
+                colors = CardDefaults.elevatedCardColors(containerColor = surfaceColor)
             ) {
                 Row(
                     modifier = Modifier
@@ -171,8 +169,8 @@ fun NutricionMenuScreen(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Recetario Global", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("Explora todas las recetas generadas por IA y creadas por ti.", color = Color.Gray, fontSize = 14.sp)
+                        Text("Recetario Global", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Explora todas las recetas generadas por IA y creadas por ti.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }

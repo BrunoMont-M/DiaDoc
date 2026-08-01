@@ -3,7 +3,6 @@ package com.example.diadoc.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,11 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +32,7 @@ fun AjustesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ajustes Generales") },
+                title = { Text("Ajustes Generales", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -103,7 +102,6 @@ fun AjustesScreen(
                 onClick = { /* TODO: Pantalla de Notificaciones */ }
             )
 
-            // Solo se dibuja si el usuario es Admin
             if (isAdmin) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 CategoriaAjustes(titulo = "Opciones de Administrador")
@@ -140,19 +138,13 @@ fun AjustesScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botón de Cerrar Sesión
-            Button(
+            DiaDocButton(
+                text = "CERRAR SESIÓN",
                 onClick = onLogOut,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Logout, contentDescription = "Cerrar Sesión", tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("CERRAR SESIÓN", fontWeight = FontWeight.Bold, color = Color.White)
-            }
+                containerColor = DiaDocTheme.colors.alertDanger, // Usamos el color semántico de alerta
+                icon = rememberVectorPainter(Icons.Default.Logout),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -164,8 +156,7 @@ fun CategoriaAjustes(titulo: String) {
     Text(
         text = titulo.uppercase(),
         color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
+        style = MaterialTheme.typography.labelLarge,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
     )
 }
@@ -192,13 +183,13 @@ fun ItemAjuste(
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = titulo, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            Text(text = subtitulo, color = Color.Gray, fontSize = 13.sp)
+            Text(text = titulo, style = MaterialTheme.typography.titleMedium)
+            Text(text = subtitulo, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = "Ir",
-            tint = Color.LightGray
+            tint = MaterialTheme.colorScheme.surfaceVariant
         )
     }
 }

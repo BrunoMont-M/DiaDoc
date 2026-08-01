@@ -1,6 +1,5 @@
 package com.example.diadoc.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,7 +21,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.BitacoraViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +50,10 @@ fun BitacoraScreen(
     val labelBiometria = if (isDiabetico) "Glucosa" else "Peso"
     val unidadBiometria = if (isDiabetico) "mg/dL" else "kg"
 
+    // Variables de color del Theme
+    val successColor = DiaDocTheme.colors.alertGood
+    val textSecondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     LaunchedEffect(uid) {
         viewModel.cargarBitacora(uid)
     }
@@ -57,7 +61,7 @@ fun BitacoraScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bitácora de Salud", fontWeight = FontWeight.Bold) },
+                title = { Text("Bitácora de Salud", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -80,13 +84,13 @@ fun BitacoraScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("PROGRESO DE HOY:", fontWeight = FontWeight.Bold, color = Color.Gray)
-                        Text("${(progresoHoy * 100).toInt()}%", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text("PROGRESO DE HOY:", style = MaterialTheme.typography.labelLarge, color = textSecondaryColor)
+                        Text("${(progresoHoy * 100).toInt()}%", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LinearProgressIndicator(
-                        progress = progresoHoy,
+                        progress = { progresoHoy },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(12.dp)
@@ -105,11 +109,11 @@ fun BitacoraScreen(
                     colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("CHECK-IN DE ACTIVIDADES", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                        Text("CHECK-IN DE ACTIVIDADES", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
                         Spacer(modifier = Modifier.height(12.dp))
 
                         if (comidasCheckIn.isEmpty()) {
-                            Text("No hay actividades registradas en tu plan de hoy.", fontStyle = FontStyle.Italic, color = Color.Gray)
+                            Text("No hay actividades registradas en tu plan de hoy.", fontStyle = FontStyle.Italic, color = textSecondaryColor, style = MaterialTheme.typography.bodyMedium)
                         } else {
                             val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
                             val comidasOrdenadas = comidasCheckIn.sortedBy { comida ->
@@ -129,19 +133,20 @@ fun BitacoraScreen(
                                     Checkbox(
                                         checked = comida.consumido,
                                         onCheckedChange = null,
-                                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF4CAF50))
+                                        colors = CheckboxDefaults.colors(checkedColor = successColor)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Column {
                                         Text(
                                             text = "${comida.tipoComida}: ${comida.nombrePlato.ifEmpty { "Sugerencia del Chef" }} ${if (comida.consumido) "(Hecho)" else ""}",
+                                            style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (comida.consumido) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (comida.consumido) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurface
+                                            color = if (comida.consumido) successColor else MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
                                             text = "${comida.kcalTotales.toInt()} kcal | ${comida.carbohidratosTotales}g Carbs",
-                                            fontSize = 12.sp,
-                                            color = if (comida.consumido) Color(0xFF4CAF50).copy(alpha = 0.8f) else Color.Gray
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (comida.consumido) successColor.copy(alpha = 0.8f) else textSecondaryColor
                                         )
                                     }
                                 }
@@ -152,7 +157,7 @@ fun BitacoraScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                             Checkbox(checked = false, onCheckedChange = null, enabled = false)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Entrenamiento: (Pendiente de generación)", color = Color.Gray)
+                            Text("Entrenamiento: (Pendiente de generación)", style = MaterialTheme.typography.bodyMedium, color = textSecondaryColor)
                         }
                     }
                 }
@@ -162,10 +167,10 @@ fun BitacoraScreen(
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("REGISTRO BIOMÉTRICO", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text("REGISTRO BIOMÉTRICO", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         ExposedDropdownMenuBox(
@@ -176,7 +181,7 @@ fun BitacoraScreen(
                                 value = momentoSeleccionado,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Momento") },
+                                label = { Text("Momento", style = MaterialTheme.typography.bodyMedium) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMomento) },
                                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
@@ -187,7 +192,7 @@ fun BitacoraScreen(
                             ) {
                                 opcionesMomento.forEach { opcion ->
                                     DropdownMenuItem(
-                                        text = { Text(opcion) },
+                                        text = { Text(opcion, style = MaterialTheme.typography.bodyMedium) },
                                         onClick = {
                                             momentoSeleccionado = opcion
                                             expandedMomento = false
@@ -203,47 +208,40 @@ fun BitacoraScreen(
                             OutlinedTextField(
                                 value = valorInput,
                                 onValueChange = { valorInput = it },
-                                label = { Text(labelBiometria) },
+                                label = { Text(labelBiometria, style = MaterialTheme.typography.bodyMedium) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.weight(1f),
                                 singleLine = true
                             )
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(unidadBiometria, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Gray)
+                            Text(unidadBiometria, style = MaterialTheme.typography.titleMedium, color = textSecondaryColor)
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Button(
+                        DiaDocButton(
+                            text = if (isSaving) "GUARDANDO..." else "GUARDAR MEDICIÓN",
+                            enabled = valorInput.isNotEmpty() && !isSaving,
                             onClick = {
                                 viewModel.guardarMedicion(uid, valorInput, momentoSeleccionado)
                                 valorInput = ""
                                 focusManager.clearFocus()
-                            },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            enabled = valorInput.isNotEmpty() && !isSaving,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            if (isSaving) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                            } else {
-                                Text("GUARDAR MEDICIÓN", fontWeight = FontWeight.Bold)
                             }
-                        }
+                        )
                     }
                 }
             }
 
             item {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                    Text("HISTORIAL RECIENTE", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color.Gray)
+                    Text("HISTORIAL RECIENTE", style = MaterialTheme.typography.labelLarge, color = textSecondaryColor)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
 
             if (historialReciente.isEmpty()) {
                 item {
-                    Text("Aún no tienes registros hoy.", modifier = Modifier.padding(horizontal = 8.dp), fontStyle = FontStyle.Italic, color = Color.Gray)
+                    Text("Aún no tienes registros hoy.", modifier = Modifier.padding(horizontal = 8.dp), fontStyle = FontStyle.Italic, color = textSecondaryColor, style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
                 items(historialReciente) { registro ->
@@ -251,11 +249,11 @@ fun BitacoraScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(registro.hora, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(50.dp))
+                        Text(registro.hora, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(50.dp))
 
                         HorizontalDivider(
                             modifier = Modifier.width(2.dp).height(16.dp),
-                            color = Color.LightGray
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         )
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -267,12 +265,12 @@ fun BitacoraScreen(
             item {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Info, contentDescription = null, tint = textSecondaryColor, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "El valor ingresado se sincronizará con tu reporte médico semanal.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = textSecondaryColor
                     )
                 }
                 Spacer(modifier = Modifier.height(80.dp))

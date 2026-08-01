@@ -15,10 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.DetalleRutina
 import com.example.diadoc.model.Ejercicio
 import com.example.diadoc.repository.EjercicioRepository
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.GeneradorRutinaViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +36,9 @@ fun EditorRutinaScreen(
     var showCatalogoModal by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf<DetalleRutina?>(null) }
 
+    val alertDanger = DiaDocTheme.colors.alertDanger
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     LaunchedEffect(uid) {
         viewModel.cargarRutinaDeHoy(uid)
         catalogoEjercicios.clear()
@@ -45,18 +48,19 @@ fun EditorRutinaScreen(
     if (errorEdicion != null) {
         AlertDialog(
             onDismissRequest = { viewModel.limpiarErrorEdicion() },
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.WarningAmber, contentDescription = null, tint = Color.Red)
+                    Icon(Icons.Default.WarningAmber, contentDescription = null, tint = alertDanger)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Alerta Médica", fontWeight = FontWeight.Bold, color = Color.Red)
+                    Text("Alerta Médica", fontWeight = FontWeight.Bold, color = alertDanger)
                 }
             },
             text = { Text(errorEdicion!!) },
             confirmButton = {
                 Button(
                     onClick = { viewModel.limpiarErrorEdicion() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    colors = ButtonDefaults.buttonColors(containerColor = alertDanger)
                 ) {
                     Text("Entendido")
                 }
@@ -72,6 +76,7 @@ fun EditorRutinaScreen(
 
         AlertDialog(
             onDismissRequest = { showEditDialog = null },
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Ajustar Carga", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
@@ -122,7 +127,7 @@ fun EditorRutinaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Editar Entrenamiento", fontWeight = FontWeight.Bold) },
+                title = { Text("Editar Entrenamiento", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -130,7 +135,7 @@ fun EditorRutinaScreen(
                 },
                 actions = {
                     TextButton(onClick = onNavigateBack) {
-                        Text("Listo", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, fontSize = 16.sp)
+                        Text("Listo", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -142,7 +147,7 @@ fun EditorRutinaScreen(
                 icon = { Icon(Icons.Default.Add, contentDescription = "Agregar") },
                 text = { Text("Agregar Ejercicio") },
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         }
     ) { paddingValues ->
@@ -154,7 +159,7 @@ fun EditorRutinaScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("RUTINA DE HOY (Editando...)", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color.Gray)
+                Text("RUTINA DE HOY (Editando...)", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelLarge, color = onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -169,23 +174,23 @@ fun EditorRutinaScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = ejercicioReal?.nombreEjercicio ?: "Cargando...",
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
                                 modifier = Modifier.weight(1f)
                             )
                             IconButton(onClick = {
                                 rutinaActual?.codRutina?.let { viewModel.eliminarEjercicio(it, detalle.codDetalle) }
                             }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.Red)
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = alertDanger)
                             }
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Impacto: ${ejercicioReal?.impactoMuscular ?: "..."}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Text("Impacto: ${ejercicioReal?.impactoMuscular ?: "..."}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Carga: ${detalle.seriesDetalle} x ${detalle.repeticionesDetalle} | Desc: ${detalle.tiempoDescanso}s", color = Color.DarkGray)
+                            Text("Carga: ${detalle.seriesDetalle} x ${detalle.repeticionesDetalle} | Desc: ${detalle.tiempoDescanso}s", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                             TextButton(onClick = { showEditDialog = detalle }) {
                                 Text("Editar Carga")
                             }
@@ -198,9 +203,12 @@ fun EditorRutinaScreen(
         }
 
         if (showCatalogoModal) {
-            ModalBottomSheet(onDismissRequest = { showCatalogoModal = false }) {
+            ModalBottomSheet(
+                onDismissRequest = { showCatalogoModal = false },
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
                 Column(modifier = Modifier.padding(16.dp).fillMaxWidth().fillMaxHeight(0.8f)) {
-                    Text("Catálogo de Ejercicios", fontWeight = FontWeight.Black, fontSize = 20.sp)
+                    Text("Catálogo de Ejercicios", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -216,8 +224,8 @@ fun EditorRutinaScreen(
                             ) {
                                 Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                     Column {
-                                        Text(ej.nombreEjercicio, fontWeight = FontWeight.Bold)
-                                        Text("Impacto: ${ej.impactoMuscular}", fontSize = 14.sp, color = Color.Gray)
+                                        Text(ej.nombreEjercicio, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Text("Impacto: ${ej.impactoMuscular}", style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant)
                                     }
                                     Icon(Icons.Default.AddCircleOutline, contentDescription = "Añadir", tint = MaterialTheme.colorScheme.primary)
                                 }

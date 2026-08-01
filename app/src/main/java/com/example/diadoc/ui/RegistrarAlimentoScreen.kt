@@ -26,13 +26,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.Dispatchers
@@ -65,10 +67,9 @@ fun RegistrarAlimentoScreen(
     var carbohidratos by remember { mutableStateOf("") }
     var proteinas by remember { mutableStateOf("") }
 
-    val backgroundColor = Color(0xFF121214)
-    val cardColor = Color(0xFF1E1E24)
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val infoBlue = Color(0xFF29B6F6)
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val alertDanger = DiaDocTheme.colors.alertDanger
+    val moduleNutrition = DiaDocTheme.colors.moduleNutrition
 
     val camposCompletos = nombreAlimento.isNotBlank() && calorias.isNotBlank() &&
             grasas.isNotBlank() && carbohidratos.isNotBlank() && proteinas.isNotBlank()
@@ -96,20 +97,15 @@ fun RegistrarAlimentoScreen(
     }
 
     Scaffold(
-        containerColor = backgroundColor,
         topBar = {
             TopAppBar(
-                title = { Text("Mis Alimentos", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("Mis Alimentos", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = backgroundColor,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { paddingValues ->
@@ -129,9 +125,8 @@ fun RegistrarAlimentoScreen(
 
                 Text(
                     text = "AÑADIR NUEVO ALIMENTO",
-                    color = Color.LightGray,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Start
                 )
@@ -205,41 +200,43 @@ fun RegistrarAlimentoScreen(
                                     Toast.makeText(context, "Escaneo cancelado", Toast.LENGTH_SHORT).show()
                                 }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = cardColor)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
-                        Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = primaryColor)
+                        Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("QR", color = Color.White, fontWeight = FontWeight.Medium)
+                        Text("QR", fontWeight = FontWeight.Bold)
                     }
 
                     Button(
                         onClick = { cameraLauncher.launch(null) },
-                        modifier = Modifier.weight(1.5f),
+                        modifier = Modifier.weight(1.5f).height(50.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         enabled = !isLoading
                     ) {
-                        Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("CÁMARA IA", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("CÁMARA IA", fontWeight = FontWeight.Bold)
                     }
                 }
 
                 Text(
                     text = if (idEnEdicion != null) "EDITAR ALIMENTO" else "CARGA MANUAL (Detalles por 100g)",
-                    color = Color.LightGray,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Start
                 )
 
-                Card(
+                ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -250,11 +247,7 @@ fun RegistrarAlimentoScreen(
                             onValueChange = { nombreAlimento = it },
                             label = { Text("Nombre") },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray
-                            )
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         Row(
@@ -267,11 +260,7 @@ fun RegistrarAlimentoScreen(
                                 label = { Text("Calorías (kcal)") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                    focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray
-                                )
+                                modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
                                 value = grasas,
@@ -279,11 +268,7 @@ fun RegistrarAlimentoScreen(
                                 label = { Text("Grasas (g)") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                    focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray
-                                )
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
@@ -297,11 +282,7 @@ fun RegistrarAlimentoScreen(
                                 label = { Text("Carbohidratos (g)") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                    focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray
-                                )
+                                modifier = Modifier.weight(1f)
                             )
                             OutlinedTextField(
                                 value = proteinas,
@@ -309,61 +290,50 @@ fun RegistrarAlimentoScreen(
                                 label = { Text("Proteínas (g)") },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                    focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray
-                                )
+                                modifier = Modifier.weight(1f)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Button(
-                            onClick = {
-                                if (camposCompletos) {
-                                    viewModel.guardarAlimento(
-                                        codAlimento = idEnEdicion,
-                                        nombre = nombreAlimento,
-                                        kcal = calorias.toDoubleOrNull() ?: 0.0,
-                                        grasas = grasas.toDoubleOrNull() ?: 0.0,
-                                        carbohidratos = carbohidratos.toDoubleOrNull() ?: 0.0,
-                                        proteinas = proteinas.toDoubleOrNull() ?: 0.0
-                                    )
-                                    idEnEdicion = null
-                                    nombreAlimento = ""
-                                    calorias = ""
-                                    grasas = ""
-                                    carbohidratos = ""
-                                    proteinas = ""
-                                    Toast.makeText(context, "Alimento guardado", Toast.LENGTH_SHORT).show()
-                                }
-                            },
+                        DiaDocButton(
+                            text = if (idEnEdicion != null) "ACTUALIZAR" else "GUARDAR",
+                            icon = rememberVectorPainter(Icons.Default.Save),
                             enabled = camposCompletos,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (idEnEdicion != null) "ACTUALIZAR" else "GUARDAR", fontWeight = FontWeight.Bold)
-                        }
+                            onClick = {
+                                viewModel.guardarAlimento(
+                                    codAlimento = idEnEdicion,
+                                    nombre = nombreAlimento,
+                                    kcal = calorias.toDoubleOrNull() ?: 0.0,
+                                    grasas = grasas.toDoubleOrNull() ?: 0.0,
+                                    carbohidratos = carbohidratos.toDoubleOrNull() ?: 0.0,
+                                    proteinas = proteinas.toDoubleOrNull() ?: 0.0
+                                )
+                                idEnEdicion = null
+                                nombreAlimento = ""
+                                calorias = ""
+                                grasas = ""
+                                carbohidratos = ""
+                                proteinas = ""
+                                Toast.makeText(context, "Alimento guardado", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
 
                 Text(
                     text = "MI DESPENSA (Recientes)",
-                    color = Color.LightGray,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Start
                 )
 
-                Card(
+                ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -372,8 +342,8 @@ fun RegistrarAlimentoScreen(
                         if (alimentosRecientes.isEmpty() && !isLoading) {
                             Text(
                                 text = "No hay alimentos registrados.",
-                                color = Color.Gray,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = onSurfaceVariant,
                                 modifier = Modifier.padding(8.dp)
                             )
                         } else {
@@ -392,14 +362,14 @@ fun RegistrarAlimentoScreen(
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Assignment,
                                             contentDescription = null,
-                                            tint = Color(0xFF4FC3F7),
+                                            tint = moduleNutrition, // Usamos el color de nutrición semántico
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
                                             text = alimento.nombreAlimento,
-                                            color = Color.White,
-                                            fontSize = 14.sp
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
 
@@ -412,10 +382,10 @@ fun RegistrarAlimentoScreen(
                                             carbohidratos = alimento.carbohidratosBase.toString()
                                             proteinas = alimento.proteinasBase.toString()
                                         }) {
-                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = onSurfaceVariant, modifier = Modifier.size(20.dp))
                                         }
                                         IconButton(onClick = { viewModel.eliminarAlimento(alimento.codAlimento) }) {
-                                            Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = Color(0xFFFF5252), modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = alertDanger, modifier = Modifier.size(20.dp))
                                         }
                                     }
                                 }
@@ -434,14 +404,14 @@ fun RegistrarAlimentoScreen(
                     Icon(
                         imageVector = Icons.Default.Lightbulb,
                         contentDescription = null,
-                        tint = infoBlue,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Asegúrate de completar todos los macronutrientes para un conteo calórico exacto.",
-                        color = Color.Gray,
-                        fontSize = 12.sp,
+                        color = onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Normal
                     )
                 }
@@ -452,7 +422,7 @@ fun RegistrarAlimentoScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -464,16 +434,16 @@ fun RegistrarAlimentoScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator(
-                            color = primaryColor,
+                            color = MaterialTheme.colorScheme.primary,
                             strokeWidth = 4.dp,
                             modifier = Modifier.size(50.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Procesando...",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 16.sp
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
                 }

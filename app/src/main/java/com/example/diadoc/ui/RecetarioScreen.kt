@@ -36,8 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.RecetaPersonalizada
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.RecetarioViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,11 +58,9 @@ fun RecetarioScreen(
     var tabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Mis Recetas", "Sugeridas por IA")
 
-    val backgroundColor = Color(0xFF121214)
-    val cardColor = Color(0xFF1E1E24)
-    val primaryColor = MaterialTheme.colorScheme.primary
-
     val categorias = listOf("Todas", "Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val alertDanger = DiaDocTheme.colors.alertDanger
 
     LaunchedEffect(uid) {
         viewModel.cargarRecetas(uid)
@@ -76,20 +74,19 @@ fun RecetarioScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Recetario Global", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text("Recetario Global", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor)
                 .padding(paddingValues)
         ) {
             // Buscador
@@ -99,35 +96,27 @@ fun RecetarioScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Buscar receta o ingrediente...", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.Gray) },
+                placeholder = { Text("Buscar receta o ingrediente...", color = onSurfaceVariant) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
                 shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = primaryColor,
-                    unfocusedBorderColor = Color.DarkGray,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedContainerColor = cardColor,
-                    unfocusedContainerColor = cardColor
-                ),
                 singleLine = true
             )
 
             TabRow(
                 selectedTabIndex = tabIndex,
-                containerColor = backgroundColor,
-                contentColor = primaryColor,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.primary,
                 indicator = { tabPositions ->
                     if (tabIndex < tabPositions.size) {
                         TabRowDefaults.Indicator(
                             Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
-                            color = primaryColor,
+                            color = MaterialTheme.colorScheme.primary,
                             height = 3.dp
                         )
                     }
                 },
                 divider = {
-                    HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
@@ -137,12 +126,12 @@ fun RecetarioScreen(
                         text = {
                             Text(
                                 text = title,
-                                fontWeight = if (tabIndex == index) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 15.sp
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (tabIndex == index) FontWeight.Bold else FontWeight.Medium
                             )
                         },
-                        selectedContentColor = primaryColor,
-                        unselectedContentColor = Color.Gray
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = onSurfaceVariant
                     )
                 }
             }
@@ -158,15 +147,8 @@ fun RecetarioScreen(
                         onClick = { viewModel.cambiarCategoria(cat, uid) },
                         label = { Text(cat, fontWeight = FontWeight.SemiBold) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = primaryColor.copy(alpha = 0.2f),
-                            selectedLabelColor = primaryColor,
-                            containerColor = cardColor,
-                            labelColor = Color.LightGray
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = categoriaSeleccionada == cat,
-                            borderColor = if (categoriaSeleccionada == cat) primaryColor else Color.Transparent
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -175,7 +157,7 @@ fun RecetarioScreen(
             // Contenido Principal
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = primaryColor)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else if (recetasFiltradas.isEmpty()) {
                 Column(
@@ -183,7 +165,7 @@ fun RecetarioScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(64.dp))
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = if (searchQuery.isNotEmpty()) {
@@ -193,8 +175,8 @@ fun RecetarioScreen(
                         } else {
                             "Aún no hay sugerencias de IA."
                         },
-                        color = Color.Gray,
-                        fontSize = 16.sp,
+                        color = onSurfaceVariant,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
@@ -202,8 +184,8 @@ fun RecetarioScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (tabIndex == 0) "Crea tus propias recetas para verlas aquí." else "Genera tu plan diario para obtener sugerencias.",
-                            color = Color.DarkGray,
-                            fontSize = 14.sp,
+                            color = onSurfaceVariant.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.bodyMedium,
                             fontStyle = FontStyle.Italic,
                             textAlign = TextAlign.Center
                         )
@@ -218,8 +200,6 @@ fun RecetarioScreen(
                     items(recetasFiltradas, key = { it.codReceta }) { receta ->
                         TarjetaRecetaAvanzada(
                             receta = receta,
-                            cardColor = cardColor,
-                            primaryColor = primaryColor,
                             onToggleFavorito = { viewModel.alternarFavorito(receta, uid) },
                             onDeleteClick = { recetaAEliminar = receta }
                         )
@@ -231,28 +211,26 @@ fun RecetarioScreen(
         if (recetaAEliminar != null) {
             AlertDialog(
                 onDismissRequest = { recetaAEliminar = null },
-                title = { Text("Eliminar Receta", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
-                text = { Text("¿Estás seguro que deseas eliminar '${recetaAEliminar?.nombreReceta}' de tu recetario global? Esta acción no se puede deshacer.") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("Eliminar Receta", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = alertDanger) },
+                text = { Text("¿Estás seguro que deseas eliminar '${recetaAEliminar?.nombreReceta}' de tu recetario global? Esta acción no se puede deshacer.", style = MaterialTheme.typography.bodyMedium) },
                 confirmButton = {
                     Button(
                         onClick = {
                             recetaAEliminar?.let { viewModel.eliminarReceta(it.codReceta, uid) }
                             recetaAEliminar = null
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(containerColor = alertDanger)
                     ) {
                         Text("Sí, eliminar", fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { recetaAEliminar = null }) {
-                        Text("Cancelar", color = Color.Gray)
+                        Text("Cancelar", color = onSurfaceVariant)
                     }
                 },
-                icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                containerColor = cardColor,
-                titleContentColor = Color.White,
-                textContentColor = Color.LightGray
+                icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = alertDanger) }
             )
         }
     }
@@ -261,8 +239,6 @@ fun RecetarioScreen(
 @Composable
 fun TarjetaRecetaAvanzada(
     receta: RecetaPersonalizada,
-    cardColor: Color,
-    primaryColor: Color,
     onToggleFavorito: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
@@ -272,13 +248,17 @@ fun TarjetaRecetaAvanzada(
     val partes = if (esRecetaIA) receta.instruccionesReceta.split("|||") else emptyList()
     val descripcionPreview = if (esRecetaIA) partes.getOrNull(0) ?: "" else receta.instruccionesReceta
 
-    Card(
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val alertDanger = DiaDocTheme.colors.alertDanger
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
+    ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded }
             .animateContentSize(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Cabecera
@@ -295,8 +275,7 @@ fun TarjetaRecetaAvanzada(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = receta.nombreReceta.ifEmpty { "Receta sin nombre" },
-                        color = Color.White,
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -304,34 +283,33 @@ fun TarjetaRecetaAvanzada(
                     Text(
                         text = receta.tipoComida,
                         color = primaryColor,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 IconButton(onClick = onDeleteClick) {
-                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f))
+                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = alertDanger.copy(alpha = 0.8f))
                 }
 
                 IconButton(onClick = onToggleFavorito) {
                     Icon(
                         imageVector = if (receta.esFavorita) Icons.Default.Star else Icons.Outlined.StarOutline,
                         contentDescription = "Favorito",
-                        tint = if (receta.esFavorita) Color(0xFFFFC107) else Color.Gray
+                        tint = if (receta.esFavorita) Color(0xFFFFC107) else MaterialTheme.colorScheme.outline
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = if (esRecetaIA) "\"$descripcionPreview\"" else descripcionPreview.ifEmpty { "Sin instrucciones detalladas." },
                 fontStyle = if (esRecetaIA) FontStyle.Italic else FontStyle.Normal,
-                color = Color.LightGray,
-                fontSize = 14.sp,
-                lineHeight = 22.sp,
+                color = onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = if (expanded && !esRecetaIA) Int.MAX_VALUE else if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis
             )
@@ -341,7 +319,7 @@ fun TarjetaRecetaAvanzada(
                 val pasosStr = partes.getOrNull(2) ?: ""
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Ingredientes", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                Text("Ingredientes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val listaIngredientes = ingredientesStr.split("@@").filter { it.isNotBlank() }
@@ -353,18 +331,18 @@ fun TarjetaRecetaAvanzada(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("• $nombre", fontSize = 14.sp, color = Color.LightGray, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                        Text("• $nombre", style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         if (kcal.isNotEmpty()) {
-                            Text("$kcal kcal", color = Color.Gray, fontSize = 14.sp)
+                            Text("$kcal kcal", color = onSurfaceVariant.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Color.DarkGray.copy(alpha = 0.5f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Preparación", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                Text("Preparación", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 val listaPasos = pasosStr.split("@@").filter { it.isNotBlank() }
@@ -374,13 +352,13 @@ fun TarjetaRecetaAvanzada(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(primaryColor.copy(alpha = 0.2f)),
+                                .background(primaryColor.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("${index + 1}", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("${index + 1}", color = primaryColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(paso, fontSize = 14.sp, color = Color.LightGray, modifier = Modifier.weight(1f))
+                        Text(paso, style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant, modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -403,6 +381,6 @@ fun MacroBadge(valor: String, color: Color) {
             .background(color.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Text(text = valor, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(text = valor, color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
     }
 }

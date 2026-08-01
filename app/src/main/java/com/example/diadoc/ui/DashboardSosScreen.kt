@@ -19,7 +19,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationServices
@@ -28,6 +27,7 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.example.diadoc.viewmodel.BitacoraViewModel
 import com.example.diadoc.viewmodel.ContactosViewModel
 import com.example.diadoc.viewmodel.PerfilMedicoViewModel
+import com.example.diadoc.ui.theme.DiaDocTheme
 import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
@@ -80,6 +80,12 @@ fun DashboardSosScreen(
     var sosStatus by remember { mutableStateOf("IDLE") }
     var segundos by remember { mutableStateOf(5) }
 
+    // Colores semánticos
+    val alertDanger = DiaDocTheme.colors.alertDanger
+    val alertWarning = DiaDocTheme.colors.alertWarning
+    val alertGood = DiaDocTheme.colors.alertGood
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     // Al abrir la pantalla, cargamos todo el ecosistema y forzamos lectura de GPS real
     LaunchedEffect(uid) {
         contactosViewModel.cargarContactos(uid)
@@ -108,7 +114,6 @@ fun DashboardSosScreen(
             try {
                 if (listaContactos.isNotEmpty()) {
                     val smsManager = context.getSystemService(SmsManager::class.java)
-
                     val linkMaps = "https://maps.google.com/?q=$latitud,$longitud"
 
                     val mensajeCompleto = "S.O.S. EMERGENCIA\n" +
@@ -119,7 +124,6 @@ fun DashboardSosScreen(
                             linkMaps
 
                     val partesMensaje = smsManager.divideMessage(mensajeCompleto)
-
                     var enviados = 0
 
                     listaContactos.forEach { contacto ->
@@ -127,7 +131,6 @@ fun DashboardSosScreen(
                         if (numeroDestino.isNotBlank()) {
                             smsManager.sendMultipartTextMessage(numeroDestino, null, partesMensaje, null, null)
                             enviados++
-
                             delay(3000)
                         }
                     }
@@ -149,29 +152,38 @@ fun DashboardSosScreen(
 
     // --- INTERFAZ VISUAL ---
     Box(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF121214)),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight().border(2.dp, Color(0xFFFFB300), RoundedCornerShape(16.dp)),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E24))
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight()
+                .border(2.dp, alertWarning, RoundedCornerShape(16.dp)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("🚨 ALERTA S.O.S.", color = Color.Red, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("🚨 ALERTA S.O.S.", color = alertDanger, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
 
                 when (sosStatus) {
                     "IDLE" -> {
-                        Button(onClick = { sosStatus = "COUNTDOWN" }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
-                            Text("ACTIVAR SOS", fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { sosStatus = "COUNTDOWN" },
+                            colors = ButtonDefaults.buttonColors(containerColor = alertDanger),
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                        ) {
+                            Text("ACTIVAR SOS", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
                         }
                     }
                     "COUNTDOWN" -> {
-                        Text("ENVIANDO EN...", color = Color.White)
-                        Text("$segundos", color = Color.Red, fontSize = 60.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("ENVIANDO EN...", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text("$segundos", color = alertDanger, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
 
                         LaunchedEffect(Unit) {
                             repeat(5) {
@@ -182,14 +194,17 @@ fun DashboardSosScreen(
                         }
                     }
                     "SENT" -> {
-                        Text("¡ALERTA ENVIADA!", color = Color.Green, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Text("Se notificó a toda tu red de contención.", color = Color.White, fontSize = 16.sp, textAlign = TextAlign.Center)
-                        Text("📍 Ubicación y estado enviados.", color = Color.LightGray, fontSize = 14.sp)
+                        Text("¡ALERTA ENVIADA!", color = alertGood, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Se notificó a toda tu red de contención.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
+                        Text("📍 Ubicación y estado enviados.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Button(onClick = { sosStatus = "IDLE"; segundos = 5 }, colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)) {
-                            Text("REINICIAR ALERTA")
+                        Button(
+                            onClick = { sosStatus = "IDLE"; segundos = 5 },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                        ) {
+                            Text("REINICIAR ALERTA", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

@@ -28,19 +28,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.Alimento
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 import com.example.diadoc.viewmodel.RecetarioViewModel
 import java.util.UUID
 
-// --- Modelos de datos visuales ---
+// --- Modelos de datos visuales (Se mantienen igual, es lógica) ---
 data class IngredienteReceta(
     val id: String,
     val nombre: String,
@@ -90,13 +92,8 @@ fun CrearRecetaScreen(
     val foodResults by catalogoViewModel.alimentos.collectAsState(initial = emptyList())
     val focusManager = LocalFocusManager.current
 
-    val backgroundColor = Color(0xFF121214)
-    val cardColor = Color(0xFF1E1E24)
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val warningYellow = Color(0xFFFFB300)
-
+    // Cálculos
     val cantPorciones = porciones.toIntOrNull()?.coerceAtLeast(1) ?: 1
-
     val totalKcal = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.kcal } / cantPorciones else 0
     val totalProt = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.prot } / cantPorciones else 0
     val totalCarb = if (ingredientes.isNotEmpty()) ingredientes.sumOf { it.carb } / cantPorciones else 0
@@ -104,27 +101,27 @@ fun CrearRecetaScreen(
 
     val puedeGuardar = ingredientes.size >= 2 && nombreReceta.isNotBlank() && porciones.isNotBlank()
 
+    // Colores semánticos del tema
+    val dangerColor = DiaDocTheme.colors.alertDanger
+    val warningColor = MaterialTheme.colorScheme.error // Usamos error para la advertencia de validación
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mis Recetas", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = { Text("Mis Recetas", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = backgroundColor,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundColor)
                 .padding(paddingValues)
         ) {
             Column(
@@ -138,18 +135,17 @@ fun CrearRecetaScreen(
                 // TÍTULO DE ACCIÓN
                 Text(
                     text = if (puedeGuardar) "NUEVA RECETA (Lista para guardar)" else "NUEVA RECETA (Editando...)",
-                    color = Color.LightGray,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    color = onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Start
                 )
 
                 // --- BLOQUE 1: DATOS BÁSICOS ---
-                Card(
+                ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -161,14 +157,10 @@ fun CrearRecetaScreen(
                             label = { Text("Nombre de la receta") },
                             placeholder = { Text("Ej: Tortitas de avena integrales") },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray,
-                                focusedTextColor = Color.White, unfocusedTextColor = Color.White
-                            )
+                            modifier = Modifier.fillMaxWidth()
                         )
 
-                        Text("Categoría:", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Categoría:", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -180,15 +172,15 @@ fun CrearRecetaScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(if (isSelected) primaryColor else Color.DarkGray)
+                                        .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                         .clickable { tipoComidaSeleccionada = tipo }
                                         .padding(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
                                     Text(
                                         text = tipo,
-                                        color = if (isSelected) Color.Black else Color.LightGray,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 14.sp
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                     )
                                 }
                             }
@@ -201,26 +193,22 @@ fun CrearRecetaScreen(
                             placeholder = { Text("Ej: 4") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth(0.5f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = primaryColor, unfocusedBorderColor = Color.Gray,
-                                focusedTextColor = Color.White, unfocusedTextColor = Color.White
-                            )
+                            modifier = Modifier.fillMaxWidth(0.5f)
                         )
                     }
                 }
 
                 // --- BLOQUE 2: INGREDIENTES ---
-                Card(
+                ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("INGREDIENTES:", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+                        Text("INGREDIENTES:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
 
                         if (ingredientes.isEmpty()) {
-                            Text("Usa el botón inferior para buscar alimentos del catálogo.", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(vertical = 8.dp))
+                            Text("Usa el botón inferior para buscar alimentos del catálogo.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 8.dp))
                         } else {
                             ingredientes.forEach { ingrediente ->
                                 Row(
@@ -229,11 +217,11 @@ fun CrearRecetaScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                        Text("• ", color = primaryColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                        Text("${ingrediente.nombre} (${ingrediente.cantidad})", color = Color.White, fontSize = 15.sp)
+                                        Text("• ", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Text("${ingrediente.nombre} (${ingrediente.cantidad})", style = MaterialTheme.typography.bodyLarge)
                                     }
                                     IconButton(onClick = { ingredientes.remove(ingrediente) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFFF4D4D), modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = dangerColor, modifier = Modifier.size(20.dp))
                                     }
                                 }
                             }
@@ -245,8 +233,8 @@ fun CrearRecetaScreen(
                             onClick = { catalogoViewModel.cargarAlimentos(); foodSearchQuery = ""; showFoodSelector = true },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = primaryColor),
-                            border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -256,16 +244,16 @@ fun CrearRecetaScreen(
                 }
 
                 // --- BLOQUE 3: PASOS DE PREPARACIÓN ---
-                Card(
+                ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor)
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("PASOS DE PREPARACIÓN:", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("PASOS DE PREPARACIÓN:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
                         pasosPreparacion.forEachIndexed { index, paso ->
                             val sugerenciaOrdinal = if (index < ordinales.size) {
@@ -280,23 +268,22 @@ fun CrearRecetaScreen(
                             ) {
                                 Text(
                                     text = "${index + 1}.",
-                                    color = primaryColor,
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
+                                    style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.padding(top = 14.dp, end = 8.dp)
                                 )
 
                                 OutlinedTextField(
                                     value = paso.texto,
                                     onValueChange = { nuevoValor -> pasosPreparacion[index] = paso.copy(texto = nuevoValor) },
-                                    placeholder = { Text(sugerenciaOrdinal, color = Color.Gray) },
+                                    placeholder = { Text(sugerenciaOrdinal) },
                                     readOnly = !paso.enEdicion,
                                     modifier = Modifier.weight(1f),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = if (paso.enEdicion) primaryColor else Color.DarkGray,
-                                        unfocusedBorderColor = Color.DarkGray,
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = if (paso.enEdicion) Color.White else Color.LightGray
+                                        focusedBorderColor = if (paso.enEdicion) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                        unfocusedTextColor = if (paso.enEdicion) MaterialTheme.colorScheme.onSurface else onSurfaceVariant
                                     )
                                 )
 
@@ -306,21 +293,21 @@ fun CrearRecetaScreen(
                                             onClick = { pasosPreparacion[index] = paso.copy(enEdicion = false) },
                                             modifier = Modifier.size(36.dp)
                                         ) {
-                                            Icon(Icons.Default.Check, contentDescription = "Guardar", tint = primaryColor)
+                                            Icon(Icons.Default.Check, contentDescription = "Confirmar paso", tint = MaterialTheme.colorScheme.primary)
                                         }
                                     } else {
                                         IconButton(
                                             onClick = { pasosPreparacion[index] = paso.copy(enEdicion = true) },
                                             modifier = Modifier.size(36.dp)
                                         ) {
-                                            Icon(Icons.Default.Edit, contentDescription = "Modificar", tint = Color.Gray)
+                                            Icon(Icons.Default.Edit, contentDescription = "Modificar paso", tint = onSurfaceVariant)
                                         }
                                     }
                                     IconButton(
                                         onClick = { pasosPreparacion.removeAt(index) },
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color(0xFFFF4D4D))
+                                        Icon(Icons.Default.Delete, contentDescription = "Eliminar paso", tint = dangerColor)
                                     }
                                 }
                             }
@@ -330,8 +317,8 @@ fun CrearRecetaScreen(
                             onClick = { pasosPreparacion.add(PasoPreparacion()) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            border = BorderStroke(1.dp, Color.DarkGray)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
@@ -341,29 +328,30 @@ fun CrearRecetaScreen(
                 }
 
                 // --- BLOQUE 4: VALORES CALCULADOS ---
-                Text("VALORES POR PORCIÓN (Calculados)", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                Text("VALORES POR PORCIÓN (Calculados)", color = onSurfaceVariant, style = MaterialTheme.typography.labelLarge, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
 
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardColor.copy(alpha = 0.7f)),
-                    border = BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("🔥 ${totalKcal} Kcal", color = Color(0xFFFF7043), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("💪 ${totalProt}g Prot", color = Color(0xFF66BB6A), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("📦 ${totalCarb}g Carb", color = Color(0xFFFFA726), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("🥑 ${totalGras}g Gras", color = Color(0xFF26A69A), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        // Mantenemos colores específicos de nutrición y quitamos las llaves redundantes {}
+                        Text("🔥 $totalKcal Kcal", color = Color(0xFFFF7043), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text("💪 $totalProt g Prot", color = Color(0xFF66BB6A), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text("📦 $totalCarb g Carb", color = Color(0xFFFFA726), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text("🥑 $totalGras g Gras", color = Color(0xFF26A69A), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // --- REGLA INFO ---
+                // --- REGLA INFO (Validación) ---
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -372,21 +360,24 @@ fun CrearRecetaScreen(
                     Icon(
                         Icons.Default.Info,
                         contentDescription = null,
-                        tint = if (puedeGuardar) Color.Gray else warningYellow,
+                        tint = if (puedeGuardar) onSurfaceVariant else warningColor,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "Una receta debe contener al menos dos ingredientes.",
-                        color = if (puedeGuardar) Color.Gray else warningYellow,
-                        fontSize = 13.sp,
+                        color = if (puedeGuardar) onSurfaceVariant else warningColor,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = if (puedeGuardar) FontWeight.Normal else FontWeight.Medium
                     )
                 }
 
-                Button(
+                DiaDocButton(
+                    text = "GUARDAR RECETA",
+                    icon = rememberVectorPainter(Icons.Default.Save),
+                    enabled = puedeGuardar,
                     onClick = {
-                        // Extracción dinámica de los pasos para guardarlos en Firebase
+                        // Lógica de guardado
                         val pasosValidos = pasosPreparacion.filter { it.texto.isNotBlank() }
                         val textoPasos = if (pasosValidos.isNotEmpty()) {
                             pasosValidos.mapIndexed { i, paso -> "${i + 1}. ${paso.texto}" }.joinToString("\n")
@@ -412,35 +403,28 @@ fun CrearRecetaScreen(
                             }
                         )
                     },
-                    enabled = puedeGuardar,
-                    modifier = Modifier.fillMaxWidth(0.7f).padding(vertical = 16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("GUARDAR RECETA", fontWeight = FontWeight.Black, fontSize = 15.sp)
-                }
+                    modifier = Modifier.fillMaxWidth(0.8f).padding(vertical = 16.dp)
+                )
             }
         }
     }
 
     if (showFoodSelector) {
-        ModalBottomSheet(onDismissRequest = { showFoodSelector = false }, sheetState = sheetState, containerColor = cardColor) {
+        ModalBottomSheet(
+            onDismissRequest = { showFoodSelector = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface // Usamos el color del tema
+        ) {
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Búsqueda de Ingrediente (100g)", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
+                Text("Búsqueda de Ingrediente (100g)", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
 
                 OutlinedTextField(
                     value = foodSearchQuery,
                     onValueChange = { foodSearchQuery = it; catalogoViewModel.buscarAlimentos(it) },
-                    placeholder = { Text("Buscar en Catálogo maestro...", color = Color.Gray) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
+                    placeholder = { Text("Buscar en Catálogo maestro...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                        focusedBorderColor = primaryColor, unfocusedBorderColor = Color.DarkGray
-                    ),
                     singleLine = true
                 )
 
@@ -450,7 +434,14 @@ fun CrearRecetaScreen(
                     val filtrados = if (foodSearchQuery.isEmpty()) foodResults else foodResults.filter { it.nombreAlimento.contains(foodSearchQuery, ignoreCase = true) }
 
                     if (filtrados.isEmpty() && foodSearchQuery.isNotEmpty()) {
-                        item { Text("No se encontraron resultados para '$foodSearchQuery' en Firebase.", color = Color.Gray, modifier = Modifier.padding(16.dp)) }
+                        item {
+                            Text(
+                                "No se encontraron resultados para '$foodSearchQuery'.",
+                                color = onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
                     }
 
                     items(filtrados) { alim: Alimento ->
@@ -476,11 +467,11 @@ fun CrearRecetaScreen(
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.AddCircle, contentDescription = null, tint = primaryColor, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Default.AddCircle, contentDescription = "Añadir", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(alim.nombreAlimento, color = Color.White, fontWeight = FontWeight.SemiBold)
-                                Text("${alim.kcalBase.toInt()} kcal | ${alim.proteinasBase.toInt()}g Prot / 100g", color = Color.Gray, fontSize = 12.sp)
+                                Text(alim.nombreAlimento, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text("${alim.kcalBase.toInt()} kcal | ${alim.proteinasBase.toInt()}g Prot / 100g", color = onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }

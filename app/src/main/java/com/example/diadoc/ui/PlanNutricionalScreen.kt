@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.model.DetalleDieta
 import com.example.diadoc.model.RecetaPersonalizada
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.utils.Resource
 import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 import com.example.diadoc.viewmodel.RecetarioViewModel
@@ -85,7 +86,7 @@ fun PlanNutricionalScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Menú de Hoy", fontWeight = FontWeight.Bold) },
+                title = { Text("Menú de Hoy", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -103,7 +104,7 @@ fun PlanNutricionalScreen(
         ) {
             when (dietaState) {
                 is Resource.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
                 }
                 is Resource.Error -> {
                     Column(
@@ -111,12 +112,12 @@ fun PlanNutricionalScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.LightGray)
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = (dietaState as Resource.Error).message ?: "Aún no has generado tu plan de hoy.",
-                            color = Color.Gray,
-                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
                             textAlign = TextAlign.Center
                         )
@@ -130,7 +131,10 @@ fun PlanNutricionalScreen(
                     if (editandoCodDetDieta != null) {
                         val entradaEdicion = menuCompleto.entries.find { it.key.codDetDieta == editandoCodDetDieta }
                         if (entradaEdicion != null) {
-                            ModalBottomSheet(onDismissRequest = { editandoCodDetDieta = null; viewModel.limpiarCatalogo() }) {
+                            ModalBottomSheet(
+                                onDismissRequest = { editandoCodDetDieta = null; viewModel.limpiarCatalogo() },
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ) {
                                 EditorDietaContenido(
                                     detalle = entradaEdicion.key,
                                     alimentos = entradaEdicion.value,
@@ -143,7 +147,10 @@ fun PlanNutricionalScreen(
                     }
 
                     if (reemplazandoDetalle != null) {
-                        ModalBottomSheet(onDismissRequest = { reemplazandoDetalle = null; viewModel.limpiarBuscadorRecetas() }) {
+                        ModalBottomSheet(
+                            onDismissRequest = { reemplazandoDetalle = null; viewModel.limpiarBuscadorRecetas() },
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ) {
                             BuscadorRecetasGlobalBottomSheet(
                                 detalleActual = reemplazandoDetalle!!,
                                 viewModel = viewModel,
@@ -172,14 +179,13 @@ fun PlanNutricionalScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Resumen Energético", fontWeight = FontWeight.Bold)
-                                Text("${totalKcal.toInt()} Kcal", fontWeight = FontWeight.Black, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
+                                Text("Resumen Energético", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("${totalKcal.toInt()} Kcal", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                             }
                         }
 
                         val ordenCronologico = listOf("Desayuno", "Media Mañana", "Almuerzo", "Media Tarde", "Merienda", "Cena")
                         val menuOrdenado = menuCompleto.entries.sortedBy { entrada ->
-                            // Forzamos la insensibilidad a mayúsculas para evitar bugs si la IA falla una letra
                             val index = ordenCronologico.indexOfFirst { it.equals(entrada.key.tipoComida, ignoreCase = true) }
                             if (index != -1) index else 99
                         }
@@ -229,8 +235,9 @@ fun PlanNutricionalScreen(
         if (alertaRestriccion != null) {
             AlertDialog(
                 onDismissRequest = { viewModel.limpiarAlerta() },
-                title = { Text("Operación Bloqueada", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
-                text = { Text(alertaRestriccion ?: "") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("Operación Bloqueada", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
+                text = { Text(alertaRestriccion ?: "", style = MaterialTheme.typography.bodyMedium) },
                 confirmButton = { TextButton(onClick = { viewModel.limpiarAlerta() }) { Text("Entendido") } },
                 icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
             )
@@ -249,6 +256,7 @@ fun BuscadorRecetasGlobalBottomSheet(
 ) {
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     // Por defecto, iniciamos el filtro en la categoría de la comida que estamos reemplazando
     var chipSeleccionado by remember { mutableStateOf(detalleActual.tipoComida) }
@@ -271,7 +279,7 @@ fun BuscadorRecetasGlobalBottomSheet(
         Text(
             text = "Reemplazar ${detalleActual.tipoComida}",
             fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
+            style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -310,7 +318,8 @@ fun BuscadorRecetasGlobalBottomSheet(
                         text = "No se encontraron recetas para esta categoría.",
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
                         textAlign = TextAlign.Center,
-                        color = Color.Gray
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = onSurfaceVariant
                     )
                 }
             } else {
@@ -332,8 +341,8 @@ fun BuscadorRecetasGlobalBottomSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(receta.nombreReceta, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("${receta.kcalTotales.toInt()} kcal", color = Color.Gray, fontSize = 14.sp)
+                                Text(receta.nombreReceta, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("${receta.kcalTotales.toInt()} kcal", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                             }
                             Icon(Icons.Default.Sync, contentDescription = "Seleccionar Reemplazo", tint = MaterialTheme.colorScheme.primary)
                         }
@@ -358,6 +367,7 @@ fun EditorDietaContenido(
 
     var isSearchFocused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(
         modifier = Modifier
@@ -379,7 +389,7 @@ fun EditorDietaContenido(
             Text(
                 text = if (isSearchFocused) "Buscando Alimento..." else "Editar Ingredientes",
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary
             )
         }
@@ -387,7 +397,7 @@ fun EditorDietaContenido(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (!isSearchFocused) {
-            Text("Ingredientes Actuales", fontWeight = FontWeight.SemiBold)
+            Text("Ingredientes Actuales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 
             Column(
                 modifier = Modifier
@@ -400,8 +410,8 @@ fun EditorDietaContenido(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("• ${alim.nombreAlimento}", modifier = Modifier.weight(1f), fontSize = 14.sp)
-                        Text("${alim.kcalBase.toInt()} kcal", color = Color.Gray, fontSize = 14.sp)
+                        Text("• ${alim.nombreAlimento}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text("${alim.kcalBase.toInt()} kcal", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                         IconButton(onClick = { viewModel.eliminarAlimento(codDieta, uid, detalle.codDetDieta, alim.codAlimento) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                         }
@@ -410,7 +420,7 @@ fun EditorDietaContenido(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -448,10 +458,10 @@ fun EditorDietaContenido(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(alim.nombreAlimento, fontWeight = FontWeight.Medium)
-                            Text("Proteínas: ${alim.proteinasBase.toInt()}g | Carbs: ${alim.carbohidratosBase.toInt()}g", fontSize = 12.sp, color = Color.Gray)
+                            Text(alim.nombreAlimento, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text("Proteínas: ${alim.proteinasBase.toInt()}g | Carbs: ${alim.carbohidratosBase.toInt()}g", style = MaterialTheme.typography.bodySmall, color = onSurfaceVariant)
                         }
-                        Text("${alim.kcalBase.toInt()} kcal", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(end = 8.dp))
+                        Text("${alim.kcalBase.toInt()} kcal", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
                         Icon(Icons.Default.AddCircle, contentDescription = "Agregar", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -472,6 +482,8 @@ fun TarjetaRecetaInteractiva(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val consumido = detalle.consumido
+    val moduleNutrition = DiaDocTheme.colors.moduleNutrition
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     ElevatedCard(
         modifier = Modifier
@@ -517,7 +529,7 @@ fun TarjetaRecetaInteractiva(
                     Text(
                         text = detalle.tipoComida.uppercase(),
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.sp
                     )
@@ -538,7 +550,7 @@ fun TarjetaRecetaInteractiva(
                         Icon(
                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                             contentDescription = "Expandir",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = onSurfaceVariant
                         )
                     }
                 }
@@ -548,8 +560,8 @@ fun TarjetaRecetaInteractiva(
                 Text(
                     text = detalle.nombrePlato,
                     fontWeight = FontWeight.Black,
-                    fontSize = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 26.sp
                 )
 
@@ -558,14 +570,14 @@ fun TarjetaRecetaInteractiva(
                 Text(
                     text = "\"${detalle.descripcionPlato}\"",
                     fontStyle = FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    fontSize = 14.sp
+                    color = onSurfaceVariant.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.bodyMedium
                 )
 
                 if (expanded) {
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    Text("Ingredientes", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Ingredientes", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     alimentos.forEach { alimento ->
@@ -576,22 +588,22 @@ fun TarjetaRecetaInteractiva(
                         ) {
                             Text(
                                 text = "• ${alimento.nombreAlimento}",
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f).padding(end = 8.dp)
                             )
                             Text(
                                 text = "${alimento.kcalBase.toInt()} kcal",
-                                color = Color.Gray,
-                                fontSize = 14.sp
+                                color = onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text("Preparación", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Preparación", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(12.dp))
 
                     detalle.preparacion.forEachIndexed { index, paso ->
@@ -603,19 +615,20 @@ fun TarjetaRecetaInteractiva(
                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("${index + 1}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("${index + 1}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                             }
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(paso, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                            Text(paso, style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant, modifier = Modifier.weight(1f))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
+
                     Button(
                         onClick = onToggleConsumido,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (consumido) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                            containerColor = if (consumido) moduleNutrition else MaterialTheme.colorScheme.primary
                         )
                     ) {
                         Icon(

@@ -10,10 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.example.diadoc.model.Alimento
 import com.example.diadoc.viewmodel.CatalogoAlimentosViewModel
 
@@ -23,7 +21,6 @@ fun CatalogoAlimentosScreen(
     viewModel: CatalogoAlimentosViewModel,
     onBackClick: () -> Unit = {}
 ) {
-    // Forzamos a que Compose reconozca que es una lista de Alimento desde el Flow
     val listaAlimentos: List<Alimento> by viewModel.alimentos.collectAsState(initial = emptyList())
     val isLoading by viewModel.isLoading.collectAsState()
 
@@ -31,23 +28,18 @@ fun CatalogoAlimentosScreen(
         viewModel.cargarAlimentos()
     }
 
-    val backgroundColor = Color(0xFF121214)
-    val cardColor = Color(0xFF1E1E24)
-    val primaryBlue = Color(0xFF00668B)
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Catálogo de Alimentos", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Catálogo de Alimentos", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
-        },
-        containerColor = backgroundColor
+        }
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -57,7 +49,7 @@ fun CatalogoAlimentosScreen(
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
-                    color = primaryBlue
+                    color = MaterialTheme.colorScheme.primary
                 )
             } else {
                 Column(
@@ -67,26 +59,26 @@ fun CatalogoAlimentosScreen(
                 ) {
                     Text(
                         text = "Gestión del Catálogo Maestro (Admin)",
-                        color = Color.Gray,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
                     if (listaAlimentos.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No hay alimentos en el catálogo maestro", color = Color.Gray, fontSize = 16.sp)
+                            Text(
+                                text = "No hay alimentos en el catálogo maestro",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     } else {
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            // Eliminamos el casteo manual "as Alimento" que rompía la app
                             items(listaAlimentos) { alimento ->
-                                TarjetaCatalogoItem(
-                                    alimento = alimento,
-                                    cardColor = cardColor
-                                )
+                                TarjetaCatalogoItem(alimento = alimento)
                             }
                         }
                     }
@@ -97,28 +89,28 @@ fun CatalogoAlimentosScreen(
 }
 
 @Composable
-fun TarjetaCatalogoItem(alimento: Alimento, cardColor: Color) {
-    Card(
+fun TarjetaCatalogoItem(alimento: Alimento) {
+    ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor)
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Text(text = alimento.nombreAlimento, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(text = alimento.nombreAlimento, style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Kcal: ${alimento.kcalBase} | IG: ${alimento.indiceGlucemico}",
-                color = Color.LightGray,
-                fontSize = 14.sp
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = "P: ${alimento.proteinasBase}g | C: ${alimento.carbohidratosBase}g | G: ${alimento.grasasBase}g",
-                color = Color.Gray,
-                fontSize = 12.sp
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -20,16 +20,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.DetalleRutina
 import com.example.diadoc.model.Ejercicio
 import com.example.diadoc.repository.EjercicioRepository
+import com.example.diadoc.ui.components.DiaDocButton
+import com.example.diadoc.ui.theme.DiaDocTheme
 import com.example.diadoc.viewmodel.GeneradorRutinaViewModel
 import kotlinx.coroutines.delay
 
@@ -48,6 +50,10 @@ fun GeneradorRutinaScreen(
 
     val catalogoEjercicios = remember { mutableStateListOf<Ejercicio>() }
     val refreshState = rememberPullToRefreshState()
+
+    val moduleExercise = DiaDocTheme.colors.moduleExercise
+    val alertDanger = DiaDocTheme.colors.alertDanger
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     if (refreshState.isRefreshing) {
         LaunchedEffect(true) {
@@ -68,7 +74,7 @@ fun GeneradorRutinaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Mi Entrenamiento Diario", fontWeight = FontWeight.Bold) },
+                title = { Text("Mi Entrenamiento Diario", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -95,8 +101,9 @@ fun GeneradorRutinaScreen(
                     Text(
                         text = "Analizando tu perfil médico...\nGenerando rutina segura con IA",
                         textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        color = Color.Gray
+                        color = onSurfaceVariant
                     )
                 }
             } else {
@@ -106,7 +113,7 @@ fun GeneradorRutinaScreen(
                 ) {
                     item {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            Text("ENTRENAMIENTO DE HOY", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color.Gray)
+                            Text("ENTRENAMIENTO DE HOY", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelLarge, color = onSurfaceVariant)
                             Spacer(modifier = Modifier.height(12.dp))
 
                             if (rutinaActual != null) {
@@ -121,6 +128,7 @@ fun GeneradorRutinaScreen(
                                 ) {
                                     Text(
                                         text = rutinaActual!!.nombreRutina,
+                                        style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.weight(1f),
@@ -131,15 +139,16 @@ fun GeneradorRutinaScreen(
                                     Text(
                                         text = "${(progreso * 100).toInt()}% Completado",
                                         fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = moduleExercise,
                                         textAlign = TextAlign.End
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 LinearProgressIndicator(
-                                    progress = progreso,
+                                    progress = { progreso },
                                     modifier = Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = moduleExercise,
                                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                                     strokeCap = StrokeCap.Round
                                 )
@@ -148,22 +157,18 @@ fun GeneradorRutinaScreen(
                     }
 
                     item {
-                        Button(
+                        DiaDocButton(
+                            text = if (rutinaActual == null) "GENERAR RUTINA CON IA" else "REGENERAR RUTINA",
+                            icon = rememberVectorPainter(Icons.Default.AutoAwesome),
                             onClick = { viewModel.generarRutinaConIA(uid) },
-                            modifier = Modifier.fillMaxWidth().height(55.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(if (rutinaActual == null) "GENERAR RUTINA CON IA" else "REGENERAR RUTINA", fontWeight = FontWeight.Black)
-                        }
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                        )
 
                         AnimatedVisibility(visible = error != null) {
                             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.WarningAmber, contentDescription = null, tint = Color(0xFFD32F2F), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.WarningAmber, contentDescription = null, tint = alertDanger, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(error ?: "", color = Color(0xFFD32F2F), fontSize = 12.sp)
+                                Text(error ?: "", color = alertDanger, style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -172,9 +177,9 @@ fun GeneradorRutinaScreen(
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(80.dp))
+                                    Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(80.dp))
                                     Spacer(modifier = Modifier.height(16.dp))
-                                    Text("Aún no tienes rutina para hoy.", color = Color.Gray, fontStyle = FontStyle.Italic)
+                                    Text("Aún no tienes rutina para hoy.", color = onSurfaceVariant, fontStyle = FontStyle.Italic, style = MaterialTheme.typography.bodyLarge)
                                 }
                             }
                         }
@@ -200,9 +205,9 @@ fun GeneradorRutinaScreen(
                                     text = rutinaActual!!.versionMotorIA,
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.Center,
-                                    fontSize = 12.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontStyle = FontStyle.Italic,
-                                    color = Color.Gray
+                                    color = onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(80.dp))
                             }
@@ -230,6 +235,9 @@ fun EjercicioCard(
     onCheckToggle: () -> Unit,
     onNavigateToEditor: () -> Unit
 ) {
+    val moduleExercise = DiaDocTheme.colors.moduleExercise
+    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -237,22 +245,22 @@ fun EjercicioCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             val estadoTexto = if (detalle.consumido) "Completado" else "Siguiente"
-            Text("EJERCICIO ${detalle.ordenDetalle} ($estadoTexto)", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = Color.Gray)
+            Text("EJERCICIO ${detalle.ordenDetalle} ($estadoTexto)", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium, color = onSurfaceVariant)
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = ejercicio?.nombreEjercicio ?: "Cargando ejercicio...",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
 
             if (detalle.tiempoDescanso > 0) {
-                Text("Carga: ${detalle.seriesDetalle} Series x ${detalle.repeticionesDetalle} Repeticiones", color = Color.DarkGray)
-                Text("Descanso entre series: ${detalle.tiempoDescanso} seg", fontSize = 14.sp, color = Color.Gray)
+                Text("Carga: ${detalle.seriesDetalle} Series x ${detalle.repeticionesDetalle} Repeticiones", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text("Descanso entre series: ${detalle.tiempoDescanso} seg", style = MaterialTheme.typography.bodyMedium, color = onSurfaceVariant)
             } else {
-                Text("Tiempo: ${detalle.seriesDetalle} Minutos", color = Color.DarkGray)
+                Text("Tiempo: ${detalle.seriesDetalle} Minutos", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -260,13 +268,13 @@ fun EjercicioCard(
             Row(verticalAlignment = Alignment.Top) {
                 Text("⚡", modifier = Modifier.padding(end = 4.dp))
                 Column {
-                    Text("Intensidad/Impacto: ${ejercicio?.impactoMuscular ?: "Desconocido"}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Text("Ajustado por: ${detalle.observacionesIA}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontStyle = FontStyle.Italic, lineHeight = 16.sp)
+                    Text("Intensidad/Impacto: ${ejercicio?.impactoMuscular ?: "Desconocido"}", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                    Text("Ajustado por: ${detalle.observacionesIA}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary, fontStyle = FontStyle.Italic)
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -274,9 +282,9 @@ fun EjercicioCard(
                     Checkbox(
                         checked = detalle.consumido,
                         onCheckedChange = { onCheckToggle() },
-                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFF4CAF50))
+                        colors = CheckboxDefaults.colors(checkedColor = moduleExercise)
                     )
-                    Text("Marcar como Hecho", fontWeight = if (detalle.consumido) FontWeight.Bold else FontWeight.Normal, color = if (detalle.consumido) Color(0xFF4CAF50) else Color.Gray)
+                    Text("Marcar como Hecho", fontWeight = if (detalle.consumido) FontWeight.Bold else FontWeight.Normal, color = if (detalle.consumido) moduleExercise else onSurfaceVariant)
                 }
 
                 TextButton(onClick = { onNavigateToEditor() }) {
