@@ -27,6 +27,10 @@ fun AjustesScreen(
     onNavigateToCatalogoAlimentos: () -> Unit,
     onNavigateToCatalogoEjercicios: () -> Unit,
     onNavigateToGestionCuenta: () -> Unit,
+    onNavigateToUnidadesMedida: () -> Unit,
+    onNavigateToPrivacidad: () -> Unit,
+    onNavigateToPersonalizacion: () -> Unit,
+    onNavigateToNotificaciones: () -> Unit,
     onLogOut: () -> Unit
 ) {
     Scaffold(
@@ -59,7 +63,7 @@ fun AjustesScreen(
                 icono = Icons.Default.Lock,
                 titulo = "Privacidad de Datos",
                 subtitulo = "Encriptación y manejo de datos médicos",
-                onClick = { /* TODO: Pantalla de Privacidad */ }
+                onClick = onNavigateToPrivacidad
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -82,7 +86,7 @@ fun AjustesScreen(
                 icono = Icons.Default.Scale,
                 titulo = "Unidades de Medida",
                 subtitulo = "mg/dL, kg, cm",
-                onClick = { /* TODO: Pantalla de Unidades */ }
+                onClick = onNavigateToUnidadesMedida
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -93,13 +97,13 @@ fun AjustesScreen(
                 icono = Icons.Default.Palette,
                 titulo = "Personalización",
                 subtitulo = "Tema claro/oscuro y paleta de colores",
-                onClick = { /* TODO: Pantalla de Temas */ }
+                onClick = onNavigateToPersonalizacion
             )
             ItemAjuste(
                 icono = Icons.Default.Notifications,
                 titulo = "Notificaciones y Alertas",
                 subtitulo = "Recordatorios de rutinas y comidas",
-                onClick = { /* TODO: Pantalla de Notificaciones */ }
+                onClick = onNavigateToNotificaciones
             )
 
             if (isAdmin) {
@@ -141,7 +145,7 @@ fun AjustesScreen(
             DiaDocButton(
                 text = "CERRAR SESIÓN",
                 onClick = onLogOut,
-                containerColor = DiaDocTheme.colors.alertDanger, // Usamos el color semántico de alerta
+                containerColor = DiaDocTheme.colors.alertDanger,
                 icon = rememberVectorPainter(Icons.Default.Logout),
                 modifier = Modifier.padding(horizontal = 16.dp)
             )

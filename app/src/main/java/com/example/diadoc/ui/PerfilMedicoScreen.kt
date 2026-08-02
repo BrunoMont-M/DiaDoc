@@ -49,6 +49,10 @@ fun PerfilMedicoScreen(
     val patologiasPrevias by viewModel.patologiasPrevias.collectAsState()
     val restriccionesPrevias by viewModel.restriccionesPrevias.collectAsState()
 
+    // Preferencias de unidades
+    val usarKg by viewModel.usarKg.collectAsState()
+    val usarCm by viewModel.usarCm.collectAsState()
+
     val refreshState = rememberPullToRefreshState()
 
     if (refreshState.isRefreshing) {
@@ -88,10 +92,14 @@ fun PerfilMedicoScreen(
         if (fechaNacimiento.isEmpty()) fechaNacimiento = usuario?.fechaNacimiento ?: ""
     }
 
-    LaunchedEffect(perfilExistente) {
+    LaunchedEffect(perfilExistente, usarKg, usarCm) {
         perfilExistente?.let {
-            pesoActual = if (it.pesoActual > 0) it.pesoActual.toString() else ""
-            alturaPerfil = if (it.alturaPerfil > 0) it.alturaPerfil.toString() else ""
+            val pesoMostrar = if (usarKg) it.pesoActual else it.pesoActual * 2.20462
+            pesoActual = if (pesoMostrar > 0) String.format(java.util.Locale.US, "%.1f", pesoMostrar) else ""
+
+            val alturaMostrar = if (usarCm) it.alturaPerfil else it.alturaPerfil / 2.54
+            alturaPerfil = if (alturaMostrar > 0) String.format(java.util.Locale.US, "%.1f", alturaMostrar) else ""
+
             grupoSanguineo = it.grupoSanguineo
             alergias = it.alergias
 
@@ -152,6 +160,9 @@ fun PerfilMedicoScreen(
             viewModel.resetSaveState()
         }
     }
+
+    val labelPeso = if (usarKg) "Peso (kg)" else "Peso (lb)"
+    val labelAltura = if (usarCm) "Altura (cm)" else "Altura (in)"
 
     Scaffold(
         topBar = {
@@ -245,7 +256,7 @@ fun PerfilMedicoScreen(
                     OutlinedTextField(
                         value = pesoActual,
                         onValueChange = { pesoActual = it },
-                        label = { Text("Peso (kg)") },
+                        label = { Text(labelPeso) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -254,7 +265,7 @@ fun PerfilMedicoScreen(
                     OutlinedTextField(
                         value = alturaPerfil,
                         onValueChange = { alturaPerfil = it },
-                        label = { Text("Altura (cm)") },
+                        label = { Text(labelAltura) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -265,8 +276,12 @@ fun PerfilMedicoScreen(
                 val pesoNum = pesoActual.replace(",", ".").toDoubleOrNull() ?: 0.0
                 val alturaNum = alturaPerfil.replace(",", ".").toDoubleOrNull() ?: 0.0
                 if (pesoNum > 0 && alturaNum > 0) {
-                    val alturaMetros = alturaNum / 100
-                    val imc = pesoNum / (alturaMetros * alturaMetros)
+                    // Normalizamos a métrico temporalmente solo para el cálculo matemático del IMC
+                    val pesoMetrico = if (usarKg) pesoNum else pesoNum / 2.20462
+                    val alturaMetrica = if (usarCm) alturaNum else alturaNum * 2.54
+
+                    val alturaMetros = alturaMetrica / 100
+                    val imc = pesoMetrico / (alturaMetros * alturaMetros)
                     val imcLabel = when {
                         imc < 18.5 -> "(Bajo peso)"
                         imc in 18.5..24.9 -> "(Saludable)"

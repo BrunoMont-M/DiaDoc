@@ -38,6 +38,9 @@ fun BitacoraScreen(
     val historialReciente by viewModel.historialReciente.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
 
+    val usarMgdl by viewModel.usarMgdl.collectAsState()
+    val usarKg by viewModel.usarKg.collectAsState()
+
     var valorInput by remember { mutableStateOf("") }
     var expandedMomento by remember { mutableStateOf(false) }
     var momentoSeleccionado by remember { mutableStateOf("En ayunas") }
@@ -48,7 +51,13 @@ fun BitacoraScreen(
 
     val isDiabetico = patologias.contains("diabet")
     val labelBiometria = if (isDiabetico) "Glucosa" else "Peso"
-    val unidadBiometria = if (isDiabetico) "mg/dL" else "kg"
+
+    // Asignación dinámica de la etiqueta de la unidad en la UI
+    val unidadBiometria = if (isDiabetico) {
+        if (usarMgdl) "mg/dL" else "mmol/L"
+    } else {
+        if (usarKg) "kg" else "lb"
+    }
 
     // Variables de color del Theme
     val successColor = DiaDocTheme.colors.alertGood

@@ -227,6 +227,10 @@ fun AppNavigation(
                     onNavigateToCatalogoAlimentos = { navController.navigate("catalogo_alimentos") },
                     onNavigateToCatalogoEjercicios = { navController.navigate("catalogo_ejercicios") },
                     onNavigateToGestionCuenta = { navController.navigate("gestion_cuenta/$uid") },
+                    onNavigateToUnidadesMedida = { navController.navigate("unidades_medida") },
+                    onNavigateToPrivacidad = { navController.navigate("privacidad_datos") },
+                    onNavigateToPersonalizacion = { navController.navigate("personalizacion") },
+                    onNavigateToNotificaciones = { navController.navigate("notificaciones") },
                     onLogOut = {
                         dashboardViewModel.limpiarDatos()
                         perfilViewModel.limpiarDatos()
@@ -236,6 +240,12 @@ fun AppNavigation(
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable("privacidad_datos") {
+                PrivacidadDatosScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -254,6 +264,39 @@ fun AppNavigation(
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable("unidades_medida") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val factory = com.example.diadoc.viewmodel.UnidadesMedidaViewModelFactory(context)
+                val unidadesViewModel: com.example.diadoc.viewmodel.UnidadesMedidaViewModel = viewModel(factory = factory)
+
+                UnidadesMedidaScreen(
+                    viewModel = unidadesViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("personalizacion") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val factory = com.example.diadoc.viewmodel.PersonalizacionViewModelFactory(context)
+                val personalizacionViewModel: com.example.diadoc.viewmodel.PersonalizacionViewModel = viewModel(factory = factory)
+
+                PersonalizacionScreen(
+                    viewModel = personalizacionViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("notificaciones") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val factory = com.example.diadoc.viewmodel.NotificacionesViewModelFactory(context)
+                val notificacionesViewModel: com.example.diadoc.viewmodel.NotificacionesViewModel = viewModel(factory = factory)
+
+                NotificacionesScreen(
+                    viewModel = notificacionesViewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -300,7 +343,10 @@ fun AppNavigation(
 
             composable("bitacora/{uid}") { backStackEntry ->
                 val uid = backStackEntry.arguments?.getString("uid") ?: ""
-                val bitacoraViewModel: BitacoraViewModel = viewModel()
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val factory = com.example.diadoc.viewmodel.BitacoraViewModelFactory(context)
+                val bitacoraViewModel: com.example.diadoc.viewmodel.BitacoraViewModel = viewModel(factory = factory)
+
                 BitacoraScreen(
                     viewModel = bitacoraViewModel,
                     uid = uid,
@@ -342,7 +388,7 @@ fun AppNavigation(
 
             composable("recetario") {
                 val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-                val recetarioViewModel: RecetarioViewModel = viewModel() // ViewModel para listar
+                val recetarioViewModel: RecetarioViewModel = viewModel()
 
                 RecetarioScreen(
                     uid = uid,

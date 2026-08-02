@@ -59,6 +59,9 @@ fun DashboardScreen(
     val vasosAgua by viewModel.vasosAgua.collectAsState()
     val planHoy by viewModel.planHoy.collectAsState()
     val metricaDinamica by viewModel.metricaDinamica.collectAsState()
+
+    val valorBiometriaAbsoluto by viewModel.valorBiometriaAbsoluto.collectAsState()
+
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val comidasHoy by viewModel.comidasHoy.collectAsState()
 
@@ -73,6 +76,9 @@ fun DashboardScreen(
 
     val comparativaSemanal by viewModel.comparativaSemanal.collectAsState()
     var showComparativaModal by remember { mutableStateOf(false) }
+
+    val usarMl by viewModel.usarMl.collectAsState()
+    val labelVaso = if (usarMl) "250 ml" else "8 oz"
 
     val refreshState = rememberPullToRefreshState()
     if (refreshState.isRefreshing) {
@@ -104,7 +110,6 @@ fun DashboardScreen(
         lastScrollOffset = scrollState.value
     }
 
-    // Variables de Tema Semántico
     val alertDanger = DiaDocTheme.colors.alertDanger
     val alertWarning = DiaDocTheme.colors.alertWarning
     val alertGood = DiaDocTheme.colors.alertGood
@@ -196,7 +201,7 @@ fun DashboardScreen(
                     FilterChip(
                         selected = false,
                         onClick = { if (planHoy != null) viewModel.sumarVasoAgua() },
-                        label = { Text(if (planHoy != null) "+1 Vaso de Agua" else "Generá un plan") },
+                        label = { Text(if (planHoy != null) "+1 Vaso ($labelVaso)" else "Generá un plan") },
                         leadingIcon = { Icon(Icons.Default.WaterDrop, contentDescription = null, tint = moduleHydration) },
                         shape = RoundedCornerShape(16.dp)
                     )
@@ -247,18 +252,19 @@ fun DashboardScreen(
                         else -> Icons.Default.LocalFireDepartment
                     }
 
-                    val valorActual = metricaDinamica.getOrNull(1)?.toFloatOrNull() ?: 0f
-                    // Lógica de colores adaptada al nuevo Design System
+                    // AHORA EVALUAMOS SIEMPRE SOBRE EL VALOR CRUDO (mg/dL) PARA DECIDIR EL COLOR
+                    val valorEvaluacion = valorBiometriaAbsoluto ?: 0f
+
                     val colorTarjeta = when {
                         patologias.contains("diabet") -> {
                             when {
-                                valorActual == 0f || valorActual < 70f || valorActual > 140f -> alertDanger
-                                valorActual <= 100f -> alertGood
+                                valorEvaluacion == 0f || valorEvaluacion < 70f || valorEvaluacion > 140f -> alertDanger
+                                valorEvaluacion <= 100f -> alertGood
                                 else -> alertWarning
                             }
                         }
-                        patologias.contains("sarcopenia") -> MaterialTheme.colorScheme.secondary // Color de la app para no alertar innecesariamente
-                        else -> alertWarning // Default neutral/llamativo
+                        patologias.contains("sarcopenia") -> MaterialTheme.colorScheme.secondary
+                        else -> alertWarning
                     }
 
                     if (metricaDinamica.size >= 4) {
@@ -527,7 +533,6 @@ fun TarjetaClinica(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                // Para números muy grandes (métricas principales), usamos un estilo custom más grande pero derivado del theme
                 Text(valor, fontSize = 48.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(unidad, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
@@ -542,7 +547,7 @@ fun TarjetaClinica(
                     chart = lineChart(
                         lines = listOf(
                             lineSpec(
-                                lineColor = colorPrimario, // El gráfico automáticamente tomará el color Danger, Warning o Good
+                                lineColor = colorPrimario,
                                 lineBackgroundShader = null
                             )
                         )

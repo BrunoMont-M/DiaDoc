@@ -1,7 +1,9 @@
 package com.example.diadoc.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.diadoc.model.ControlDiario
 import com.example.diadoc.model.DetalleControl
@@ -10,8 +12,11 @@ import com.example.diadoc.repository.ControlDiarioRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
+import com.example.diadoc.repository.PreferenciasRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -20,6 +25,7 @@ import java.util.Locale
 data class RegistroHistorial(val hora: String, val descripcion: String)
 
 class BitacoraViewModel(
+    private val preferenciasRepository: PreferenciasRepository,
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val controlRepository: ControlDiarioRepository = ControlDiarioRepository(),
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
@@ -43,6 +49,9 @@ class BitacoraViewModel(
 
     private var currentCodDieta: String = ""
     private var currentCodPlan: String = ""
+
+    val usarMgdl: StateFlow<Boolean> = preferenciasRepository.usarMgdlFlow.stateIn(viewModelScope, SharingStarted.Lazily, true)
+    val usarKg: StateFlow<Boolean> = preferenciasRepository.usarKgFlow.stateIn(viewModelScope, SharingStarted.Lazily, true)
 
     fun cargarBitacora(uid: String) {
         viewModelScope.launch {
@@ -108,6 +117,9 @@ class BitacoraViewModel(
             } catch (e: Exception) { null }
         }.sortedByDescending { it.first }
 
+        val isMgdl = usarMgdl.value
+        val isKg = usarKg.value
+
         for ((date, control) in controlesHoy) {
             val horaStr = formatHora.format(date)
             val detalles = controlRepository.obtenerDetallesDeControl(control.codControl)
@@ -115,11 +127,30 @@ class BitacoraViewModel(
 
             if (biometria != null) {
                 val nombreMetrica = biometria.tipoMedicacion.replace("Biometría - ", "")
-                val valor = biometria.valorNumerico
-                val unidad = biometria.unidadMedida
+                val valorRaw = biometria.valorNumerico
+
+                var valorConvertido = valorRaw
+                var unidadFinal = biometria.unidadMedida // Por defecto (kg o mg/dL)
+
+                // LÓGICA DE CONVERSIÓN (VÍA 1: LECTURA)
+                if (nombreMetrica == "Glucosa" && !isMgdl) {
+                    valorConvertido = valorRaw / 18.0
+                    unidadFinal = "mmol/L"
+                } else if (nombreMetrica == "Peso" && !isKg) {
+                    valorConvertido = valorRaw * 2.20462
+                    unidadFinal = "lb"
+                }
+
+                // Formateo visual
+                val valorFormateado = if (unidadFinal == "mg/dL") {
+                    valorConvertido.toInt().toString()
+                } else {
+                    String.format(Locale.US, "%.1f", valorConvertido)
+                }
+
                 val momento = control.momentoDiaControl
 
-                historialDelDia.add(RegistroHistorial(horaStr, "$nombreMetrica: $valor $unidad ($momento)"))
+                historialDelDia.add(RegistroHistorial(horaStr, "$nombreMetrica: $valorFormateado $unidadFinal ($momento)"))
             }
         }
 
@@ -127,13 +158,25 @@ class BitacoraViewModel(
     }
 
     fun guardarMedicion(uid: String, valorStr: String, momento: String) {
-        val valor = valorStr.toDoubleOrNull() ?: return
+        val valorIngresado = valorStr.toDoubleOrNull() ?: return
         viewModelScope.launch {
             _isSaving.value = true
+
             val isDiabetico = _patologias.value.contains("diabet")
+            val isMgdl = usarMgdl.value
+            val isKg = usarKg.value
 
             val tipo = if (isDiabetico) "Glucosa" else "Peso"
-            val unidad = if (isDiabetico) "mg/dL" else "kg"
+            val unidadBase = if (isDiabetico) "mg/dL" else "kg" // Firebase SIEMPRE guarda esto
+
+            // LÓGICA DE CONVERSIÓN INVERSA (VÍA 2: ESCRITURA)
+            var valorParaFirebase = valorIngresado
+            if (isDiabetico && !isMgdl) {
+                valorParaFirebase = valorIngresado * 18.0 // Usuario ingresó mmol/L, guardamos mg/dL
+            } else if (!isDiabetico && !isKg) {
+                valorParaFirebase = valorIngresado / 2.20462 // Usuario ingresó lb, guardamos kg
+            }
+
             val fechaHoraActual = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
 
             val control = ControlDiario(
@@ -145,8 +188,8 @@ class BitacoraViewModel(
 
             val detalle = DetalleControl(
                 tipoMedicacion = "Biometría - $tipo",
-                unidadMedida = unidad,
-                valorNumerico = valor
+                unidadMedida = unidadBase, // Guardamos la unidad base estándar
+                valorNumerico = valorParaFirebase // Guardamos el valor convertido a estándar
             )
 
             val exito = controlRepository.registrarControlCompleto(control, detalle)
@@ -176,5 +219,17 @@ class BitacoraViewModel(
                 planRepository.actualizarProgresoDieta(currentCodPlan, nuevoPorcentaje)
             }
         }
+    }
+}
+
+// Factory necesario para la instanciación con contexto
+class BitacoraViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(BitacoraViewModel::class.java)) {
+            val repositorio = PreferenciasRepository(context.applicationContext)
+            @Suppress("UNCHECKED_CAST")
+            return BitacoraViewModel(repositorio) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

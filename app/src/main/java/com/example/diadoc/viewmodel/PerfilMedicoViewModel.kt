@@ -8,14 +8,18 @@ import com.example.diadoc.model.RestriccionUsuario
 import com.example.diadoc.model.Usuario
 import com.example.diadoc.repository.PatologiaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
+import com.example.diadoc.repository.PreferenciasRepository
 import com.example.diadoc.repository.RestriccionUsuarioRepository
 import com.example.diadoc.repository.UsuarioRepository
 import com.example.diadoc.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class PerfilMedicoViewModel(
+    private val preferenciasRepository: PreferenciasRepository,
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val patologiaRepository: PatologiaRepository = PatologiaRepository(),
     private val restriccionRepository: RestriccionUsuarioRepository = RestriccionUsuarioRepository(),
@@ -42,6 +46,9 @@ class PerfilMedicoViewModel(
 
     private val _restriccionesPrevias = MutableStateFlow<List<String>>(emptyList())
     val restriccionesPrevias: StateFlow<List<String>> = _restriccionesPrevias
+
+    val usarKg: StateFlow<Boolean> = preferenciasRepository.usarKgFlow.stateIn(viewModelScope, SharingStarted.Lazily, true)
+    val usarCm: StateFlow<Boolean> = preferenciasRepository.usarCmFlow.stateIn(viewModelScope, SharingStarted.Lazily, true)
 
     fun cargarDatosIniciales(codUsuario: String) {
         viewModelScope.launch {
@@ -70,6 +77,18 @@ class PerfilMedicoViewModel(
         viewModelScope.launch {
             _saveState.value = Resource.Loading
 
+            // Siempre guardamos en Firebase en unidades base (kg y cm)
+            val isKg = usarKg.value
+            val isCm = usarCm.value
+
+            val pesoNormalizado = if (isKg) perfil.pesoActual else perfil.pesoActual / 2.20462
+            val alturaNormalizada = if (isCm) perfil.alturaPerfil else perfil.alturaPerfil * 2.54
+
+            val perfilParaFirebase = perfil.copy(
+                pesoActual = pesoNormalizado,
+                alturaPerfil = alturaNormalizada
+            )
+
             usuarioRepository.actualizarFechaNacimiento(perfil.codUsuario, fechaNacimiento)
 
             val patologiasFinales = patologiasSeleccionadas.toMutableList()
@@ -86,7 +105,8 @@ class PerfilMedicoViewModel(
                 if (idGenerado != null) restriccionesFinales.add(idGenerado)
             }
 
-            val codPerfilGenerado = perfilRepository.guardarPerfilMedico(perfil)
+            // Guardamos el perfil con los datos convertidos
+            val codPerfilGenerado = perfilRepository.guardarPerfilMedico(perfilParaFirebase)
 
             if (codPerfilGenerado != null) {
                 perfilRepository.guardarPatologiasDelPerfil(codPerfilGenerado, patologiasFinales)

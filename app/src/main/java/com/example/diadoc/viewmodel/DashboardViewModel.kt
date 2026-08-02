@@ -12,13 +12,16 @@ import com.example.diadoc.repository.ControlDiarioRepository
 import com.example.diadoc.repository.DietaRepository
 import com.example.diadoc.repository.PerfilMedicoRepository
 import com.example.diadoc.repository.PlanDiarioRepository
+import com.example.diadoc.repository.PreferenciasRepository
 import com.example.diadoc.repository.RutinaRepository
 import com.example.diadoc.repository.UsuarioRepository
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
@@ -28,6 +31,7 @@ import java.util.Date
 import java.util.Locale
 
 class DashboardViewModel(
+    private val preferenciasRepository: PreferenciasRepository,
     private val usuarioRepository: UsuarioRepository = UsuarioRepository(),
     private val perfilRepository: PerfilMedicoRepository = PerfilMedicoRepository(),
     private val planRepository: PlanDiarioRepository = PlanDiarioRepository(),
@@ -55,6 +59,9 @@ class DashboardViewModel(
     private val _metricaDinamica = MutableStateFlow(listOf("Cargando...", "0", "", ""))
     val metricaDinamica: StateFlow<List<String>> = _metricaDinamica
 
+    private val _valorBiometriaAbsoluto = MutableStateFlow<Float?>(null)
+    val valorBiometriaAbsoluto: StateFlow<Float?> = _valorBiometriaAbsoluto
+
     private val _comidasHoy = MutableStateFlow<List<DetalleDieta>>(emptyList())
     val comidasHoy: StateFlow<List<DetalleDieta>> = _comidasHoy
 
@@ -80,6 +87,30 @@ class DashboardViewModel(
     val comparativaSemanal: StateFlow<String> = _comparativaSemanal
 
     private var tipsMensualesCache: List<String> = emptyList()
+
+    val usarMl: StateFlow<Boolean> = preferenciasRepository.usarMlFlow.stateIn(viewModelScope, SharingStarted.Lazily, true)
+
+    private var isMgdl = true
+    private var isKg = true
+
+    private var ultimoValorBiometriaRaw: Float? = null
+    private var historialBiometriaRaw: List<Float> = emptyList()
+    private var tipoPatologiaActual: String = ""
+
+    init {
+        viewModelScope.launch {
+            preferenciasRepository.usarMgdlFlow.collect { mgdl ->
+                isMgdl = mgdl
+                actualizarMetricaDinamica()
+            }
+        }
+        viewModelScope.launch {
+            preferenciasRepository.usarKgFlow.collect { kg ->
+                isKg = kg
+                actualizarMetricaDinamica()
+            }
+        }
+    }
 
     fun cargarUsuario(uid: String) {
         viewModelScope.launch {
@@ -168,6 +199,7 @@ class DashboardViewModel(
     }
 
     private suspend fun cargarHistorialReal(uid: String, patologiasLocales: String) {
+        tipoPatologiaActual = patologiasLocales
         val controles = controlRepository.obtenerControlesPorUsuario(uid)
         val format = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
@@ -190,20 +222,53 @@ class DashboardViewModel(
             }
         }
 
-        val historialParaGrafico = if (ultimosValores.isEmpty()) emptyList() else ultimosValores.reversed()
-        _historialMetricas.value = historialParaGrafico
+        historialBiometriaRaw = if (ultimosValores.isEmpty()) emptyList() else ultimosValores.reversed()
+        ultimoValorBiometriaRaw = if (ultimosValores.isNotEmpty()) ultimoValorRegistrado.toFloatOrNull() else null
 
-        if (patologiasLocales.contains("diabet")) {
-            val valorFinal = if (ultimosValores.isEmpty()) "S/D" else ultimoValorRegistrado
-            _metricaDinamica.value = listOf("Última Glucosa", valorFinal, "mg/dL", "Actualizado con tu último check-in.")
+        _valorBiometriaAbsoluto.value = ultimoValorBiometriaRaw
+
+        actualizarMetricaDinamica()
+    }
+
+    private fun actualizarMetricaDinamica() {
+        val isDiabet = tipoPatologiaActual.contains("diabet")
+        val isSarcopenia = tipoPatologiaActual.contains("sarcopenia") || tipoPatologiaActual.contains("desnutrición")
+        val valorRaw = ultimoValorBiometriaRaw
+
+        val factorConversionGrafico = when {
+            isDiabet -> if (isMgdl) 1f else (1f / 18.0f)
+            else -> if (isKg) 1f else 2.20462f
+        }
+        _historialMetricas.value = historialBiometriaRaw.map { it * factorConversionGrafico }
+
+        if (isDiabet) {
+            if (valorRaw == null) {
+                _metricaDinamica.value = listOf("Última Glucosa", "S/D", if (isMgdl) "mg/dL" else "mmol/L", "Actualizado con tu último check-in.")
+            } else {
+                val valorFinal = if (isMgdl) valorRaw.toInt().toString() else String.format(Locale.US, "%.1f", valorRaw / 18.0)
+                val unidad = if (isMgdl) "mg/dL" else "mmol/L"
+                _metricaDinamica.value = listOf("Última Glucosa", valorFinal, unidad, "Actualizado con tu último check-in.")
+            }
             _comparativaSemanal.value = "Análisis Clínico en proceso. Registra más métricas esta semana para calcular tu tendencia de glucosa."
-        } else if (patologiasLocales.contains("sarcopenia") || patologiasLocales.contains("desnutrición")) {
-            val valorFinal = if (ultimosValores.isEmpty()) "S/D" else ultimoValorRegistrado
-            _metricaDinamica.value = listOf("Peso Registrado", valorFinal, "kg", "Mantén tu seguimiento de masa muscular.")
+
+        } else if (isSarcopenia) {
+            if (valorRaw == null) {
+                _metricaDinamica.value = listOf("Peso Registrado", "S/D", if (isKg) "kg" else "lb", "Mantén tu seguimiento de masa muscular.")
+            } else {
+                val valorFinal = if (isKg) valorRaw.toString() else String.format(Locale.US, "%.1f", valorRaw * 2.20462)
+                val unidad = if (isKg) "kg" else "lb"
+                _metricaDinamica.value = listOf("Peso Registrado", valorFinal, unidad, "Mantén tu seguimiento de masa muscular.")
+            }
             _comparativaSemanal.value = "Análisis Clínico en proceso. Registra más métricas esta semana para evaluar tu retención de masa."
+
         } else {
-            val valorFinal = if (ultimosValores.isEmpty()) "S/D" else ultimoValorRegistrado
-            _metricaDinamica.value = listOf("Peso de Control", valorFinal, "kg", "Monitoreo general de salud.")
+            if (valorRaw == null) {
+                _metricaDinamica.value = listOf("Peso de Control", "S/D", if (isKg) "kg" else "lb", "Monitoreo general de salud.")
+            } else {
+                val valorFinal = if (isKg) valorRaw.toString() else String.format(Locale.US, "%.1f", valorRaw * 2.20462)
+                val unidad = if (isKg) "kg" else "lb"
+                _metricaDinamica.value = listOf("Peso de Control", valorFinal, unidad, "Monitoreo general de salud.")
+            }
             _comparativaSemanal.value = "Mantenimiento activo. Tu registro biométrico ayuda a la IA a ajustar tus planes."
         }
     }
@@ -334,7 +399,6 @@ class DashboardViewModel(
         }
     }
 
-    // Limpieza de RAM
     fun limpiarDatos() {
         _usuario.value = null
         _patologias.value = ""
@@ -342,6 +406,7 @@ class DashboardViewModel(
         _vasosAgua.value = 0
         _isRefreshing.value = false
         _metricaDinamica.value = listOf("Cargando...", "0", "", "")
+        _valorBiometriaAbsoluto.value = null
         _comidasHoy.value = emptyList()
         _ejerciciosHoy.value = emptyList()
         _porcentajeEjercicio.value = 0f

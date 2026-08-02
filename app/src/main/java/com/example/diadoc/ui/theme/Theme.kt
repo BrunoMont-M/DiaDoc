@@ -64,7 +64,6 @@ private val LightColorScheme = lightColorScheme(
     onErrorContainer = OnErrorContainerLight
 )
 
-// --- Custom Design System Tokens (DiaDocTheme) ---
 class DiaDocCustomColors(
     val moduleNutrition: Color,
     val moduleExercise: Color,
@@ -75,14 +74,7 @@ class DiaDocCustomColors(
 )
 
 val LocalDiaDocColors = staticCompositionLocalOf {
-    DiaDocCustomColors(
-        moduleNutrition = Color.Unspecified,
-        moduleExercise = Color.Unspecified,
-        moduleHydration = Color.Unspecified,
-        alertDanger = Color.Unspecified,
-        alertWarning = Color.Unspecified,
-        alertGood = Color.Unspecified
-    )
+    DiaDocCustomColors(Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified)
 }
 
 object DiaDocTheme {
@@ -94,7 +86,8 @@ object DiaDocTheme {
 @Composable
 fun DiaDocTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    paleta: Int = 0, // 0: Púrpura (Default), 1: Azul, 2: Verde
+    dynamicColor: Boolean = false, // Lo forzamos a false para que aplique siempre nuestra paleta
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -102,8 +95,20 @@ fun DiaDocTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> {
+            when (paleta) {
+                1 -> DarkColorScheme.copy(primary = PrimaryBlueDark, primaryContainer = PrimaryContainerBlueDark, onPrimaryContainer = OnPrimaryContainerBlueDark)
+                2 -> DarkColorScheme.copy(primary = PrimaryGreenDark, primaryContainer = PrimaryContainerGreenDark, onPrimaryContainer = OnPrimaryContainerGreenDark)
+                else -> DarkColorScheme
+            }
+        }
+        else -> {
+            when (paleta) {
+                1 -> LightColorScheme.copy(primary = PrimaryBlueLight, primaryContainer = PrimaryContainerBlueLight, onPrimaryContainer = OnPrimaryContainerBlueLight)
+                2 -> LightColorScheme.copy(primary = PrimaryGreenLight, primaryContainer = PrimaryContainerGreenLight, onPrimaryContainer = OnPrimaryContainerGreenLight)
+                else -> LightColorScheme
+            }
+        }
     }
 
     val view = LocalView.current
