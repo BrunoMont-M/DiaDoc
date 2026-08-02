@@ -1,15 +1,22 @@
 package com.example.diadoc.ui
 
+import android.app.Activity
+import android.content.Intent
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -33,6 +40,40 @@ fun ContactosScreen(
     var telefono by remember { mutableStateOf("") }
     var contactoEditando by remember { mutableStateOf<ContactoEmergencia?>(null) }
 
+    val context = LocalContext.current
+
+    // Lanzador para abrir la agenda de contactos nativa y obtener el teléfono seleccionado
+    val contactLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val contactUri = result.data?.data
+            if (contactUri != null) {
+                val projection = arrayOf(
+                    ContactsContract.CommonDataKinds.Phone.NUMBER,
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                )
+                val cursor = context.contentResolver.query(contactUri, projection, null, null, null)
+                cursor?.use {
+                    if (it.moveToFirst()) {
+                        val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                        val nameIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+
+                        if (numberIndex != -1) {
+                            // Extrae el número y limpia caracteres extraños (ej: espacios, guiones)
+                            val numeroCrudo = it.getString(numberIndex) ?: ""
+                            telefono = numeroCrudo.replace(Regex("[^0-9+]"), "")
+                        }
+                        if (nameIndex != -1 && nombre.isBlank()) {
+                            // Si el campo de nombre estaba vacío, lo autocompleta
+                            nombre = it.getString(nameIndex) ?: ""
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     LaunchedEffect(uid) {
         viewModel.cargarContactos(uid)
     }
@@ -45,8 +86,7 @@ fun ContactosScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                }
             )
         }
     ) { paddingValues ->
@@ -82,7 +122,22 @@ fun ContactosScreen(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 isError = errorTelefono,
-                supportingText = { if (errorTelefono) Text("Ingrese un teléfono válido") }
+                trailingIcon = {
+                    IconButton(onClick = {
+                        // Dispara el intent a la agenda telefónica del sistema
+                        val intent = Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+                        contactLauncher.launch(intent)
+                    }) {
+                        Icon(Icons.Default.Contacts, contentDescription = "Importar desde contactos")
+                    }
+                },
+                supportingText = {
+                    if (errorTelefono) {
+                        Text("Ingrese un teléfono válido")
+                    } else {
+                        Text("Incluye el código de área/país para asegurar el envío del SMS.")
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -100,7 +155,7 @@ fun ContactosScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider() // Actualizado a HorizontalDivider (Material 3)
+            HorizontalDivider()
             Spacer(modifier = Modifier.height(16.dp))
 
             Text("MIS CONTACTOS DE EMERGENCIA", style = MaterialTheme.typography.labelLarge)

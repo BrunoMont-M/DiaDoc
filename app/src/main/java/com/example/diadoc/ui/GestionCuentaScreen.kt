@@ -1,3 +1,4 @@
+// GestionCuentaScreen.kt
 package com.example.diadoc.ui
 
 import android.widget.Toast
@@ -10,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
@@ -40,6 +42,9 @@ fun GestionCuentaScreen(
     val context = LocalContext.current
     val estadoAccion by viewModel.estadoAccion.collectAsState()
     val correoActual = FirebaseAuth.getInstance().currentUser?.email ?: "Correo no disponible"
+    val displayNameActual = FirebaseAuth.getInstance().currentUser?.displayName ?: "Bruno Montero"
+
+    var nombreUsuario by remember { mutableStateOf(displayNameActual) }
 
     var passActual by remember { mutableStateOf("") }
     var passNueva by remember { mutableStateOf("") }
@@ -53,7 +58,6 @@ fun GestionCuentaScreen(
     var passParaEliminar by remember { mutableStateOf("") }
 
     val alertDanger = DiaDocTheme.colors.alertDanger
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
     LaunchedEffect(estadoAccion) {
         when (estadoAccion) {
@@ -67,6 +71,9 @@ fun GestionCuentaScreen(
                     Toast.makeText(context, "Cuenta eliminada permanentemente.", Toast.LENGTH_LONG).show()
                     viewModel.limpiarEstado()
                     onAccountDeleted()
+                } else if (accion == "NOMBRE_ACTUALIZADO") {
+                    Toast.makeText(context, "Nombre actualizado con éxito.", Toast.LENGTH_LONG).show()
+                    viewModel.limpiarEstado()
                 }
             }
             is Resource.Error -> {
@@ -100,15 +107,43 @@ fun GestionCuentaScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tarjeta de Información
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Correo Electrónico Vinculado", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(correoActual, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            // Datos Personales
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text("Datos Personales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = nombreUsuario,
+                    onValueChange = { nombreUsuario = it },
+                    label = { Text("Nombre y Apellido") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // BOTÓN AGREGADO PARA GUARDAR EL NOMBRE
+                DiaDocButton(
+                    text = "GUARDAR NOMBRE",
+                    icon = rememberVectorPainter(Icons.Default.Save),
+                    onClick = { viewModel.actualizarNombreUsuario(nombreUsuario) }, // Asegúrate de tener esta función en tu ViewModel
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    enabled = nombreUsuario.isNotBlank() && nombreUsuario != displayNameActual && estadoAccion !is Resource.Loading
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tarjeta de Información (Correo)
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Correo Electrónico Vinculado", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(correoActual, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
                 }
             }
 

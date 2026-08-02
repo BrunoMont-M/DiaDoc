@@ -1,3 +1,4 @@
+// PerfilMedico.kt
 package com.example.diadoc.model
 
 data class PerfilMedico(
@@ -6,5 +7,6 @@ data class PerfilMedico(
     val pesoActual: Double = 0.0,
     val alturaPerfil: Double = 0.0,
     val grupoSanguineo: String = "",
-    val alergias: String = ""
+    val alergias: String = "",
+    val sexoBiologico: String = "" // <- Propiedad agregada
 )

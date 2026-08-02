@@ -9,7 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -69,6 +71,11 @@ fun PerfilMedicoScreen(
     var expandedSangre by remember { mutableStateOf(false) }
     val opcionesSangre = listOf("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
 
+    // Estados para Sexo Biológico
+    var sexoBiologico by remember { mutableStateOf("") }
+    var expandedSexo by remember { mutableStateOf(false) }
+    val opcionesSexo = listOf("Femenino", "Masculino", "Otro")
+
     val patologiasSeleccionadas = remember { mutableStateListOf<String>() }
     val restriccionesSeleccionadas = remember { mutableStateListOf<String>() }
 
@@ -87,6 +94,10 @@ fun PerfilMedicoScreen(
             alturaPerfil = if (it.alturaPerfil > 0) it.alturaPerfil.toString() else ""
             grupoSanguineo = it.grupoSanguineo
             alergias = it.alergias
+
+            if (it.sexoBiologico.isNotEmpty()) {
+                sexoBiologico = it.sexoBiologico
+            }
         }
     }
 
@@ -150,7 +161,7 @@ fun PerfilMedicoScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -198,6 +209,38 @@ fun PerfilMedicoScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Selector de Sexo Biológico
+                ExposedDropdownMenuBox(
+                    expanded = expandedSexo,
+                    onExpandedChange = { expandedSexo = it }
+                ) {
+                    OutlinedTextField(
+                        value = sexoBiologico,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Sexo Biológico") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSexo) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedSexo,
+                        onDismissRequest = { expandedSexo = false }
+                    ) {
+                        opcionesSexo.forEach { opcion ->
+                            DropdownMenuItem(
+                                text = { Text(opcion) },
+                                onClick = {
+                                    sexoBiologico = opcion
+                                    expandedSexo = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     OutlinedTextField(
                         value = pesoActual,
@@ -231,7 +274,7 @@ fun PerfilMedicoScreen(
                         else -> "(Obesidad)"
                     }
                     Text(
-                        text = "IMC Calculado: ${String.format("%.1f", imc)} $imcLabel",
+                        text = "IMC Calculado: ${String.format(java.util.Locale.US, "%.1f", imc)} $imcLabel",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.align(Alignment.Start).padding(top = 8.dp)
@@ -344,7 +387,7 @@ fun PerfilMedicoScreen(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 } else {
                     DiaDocButton(
-                        text = "GUARDAR Y CONTINUAR",
+                        text = "GUARDAR CAMBIOS",
                         icon = rememberVectorPainter(Icons.Default.Save),
                         onClick = {
                             val perfilFormulario = PerfilMedico(
@@ -353,7 +396,8 @@ fun PerfilMedicoScreen(
                                 pesoActual = pesoNum,
                                 alturaPerfil = alturaNum,
                                 grupoSanguineo = grupoSanguineo,
-                                alergias = alergias
+                                alergias = alergias,
+                                sexoBiologico = sexoBiologico
                             )
                             viewModel.guardarPerfilCompleto(
                                 perfil = perfilFormulario,

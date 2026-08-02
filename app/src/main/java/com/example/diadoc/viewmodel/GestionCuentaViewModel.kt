@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.diadoc.utils.Resource
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +25,38 @@ class GestionCuentaViewModel : ViewModel() {
 
     fun limpiarEstado() {
         _estadoAccion.value = null
+    }
+
+    fun actualizarNombreUsuario(nuevoNombre: String) {
+        val user = auth.currentUser
+
+        if (user == null) {
+            _estadoAccion.value = Resource.Error("Error de sesión. Por favor, vuelve a ingresar a la app.")
+            return
+        }
+
+        viewModelScope.launch {
+            _estadoAccion.value = Resource.Loading
+            try {
+                // 1. Actualiza el displayName en el servicio de Autenticación
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setDisplayName(nuevoNombre)
+                    .build()
+
+                user.updateProfile(profileUpdates).await()
+
+                // 2. Actualiza el nombre en la colección "usuarios" de Firestore
+                db.collection("usuarios")
+                    .document(user.uid)
+                    .update("nomYapeUsuario", nuevoNombre)
+                    .await()
+
+                _estadoAccion.value = Resource.Success("NOMBRE_ACTUALIZADO")
+
+            } catch (e: Exception) {
+                _estadoAccion.value = Resource.Error(e.message ?: "Error al actualizar el nombre.")
+            }
+        }
     }
 
     fun cambiarPassword(passwordActual: String, passwordNueva: String) {
