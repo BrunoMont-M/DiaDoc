@@ -1,5 +1,10 @@
 package com.example.diadoc.viewmodel
 
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,6 +20,7 @@ import com.example.diadoc.repository.PlanDiarioRepository
 import com.example.diadoc.repository.PreferenciasRepository
 import com.example.diadoc.repository.RutinaRepository
 import com.example.diadoc.repository.UsuarioRepository
+import com.example.diadoc.utils.AlarmReceiver
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
@@ -29,6 +35,18 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
+
+// DATA CLASS PARA LA AGENDA
+data class AlarmaDiaria(
+    val id: String = UUID.randomUUID().toString(),
+    val titulo: String,
+    val hora: Int,
+    val minutos: Int,
+    val vibrar: Boolean,
+    val repeticion: String, // Ej: "Una vez", "Todos los días", "Personalizado"
+    val tonoUri: String? = null // NUEVO: URL del tono de la alarma
+)
 
 class DashboardViewModel(
     private val preferenciasRepository: PreferenciasRepository,
@@ -86,6 +104,10 @@ class DashboardViewModel(
     private val _comparativaSemanal = MutableStateFlow<String>("")
     val comparativaSemanal: StateFlow<String> = _comparativaSemanal
 
+    // ESTADO PARA LAS ALARMAS DE LA AGENDA
+    private val _alarmasAgenda = MutableStateFlow<List<AlarmaDiaria>>(emptyList())
+    val alarmasAgenda: StateFlow<List<AlarmaDiaria>> = _alarmasAgenda
+
     private var tipsMensualesCache: List<String> = emptyList()
 
     val usarMl: StateFlow<Boolean> = preferenciasRepository.usarMlFlow.stateIn(viewModelScope, SharingStarted.Lazily, true)
@@ -110,6 +132,89 @@ class DashboardViewModel(
                 actualizarMetricaDinamica()
             }
         }
+        cargarAlarmas()
+    }
+
+    private fun cargarAlarmas() {
+        // En el futuro esto se cargará desde Room o DataStore
+        _alarmasAgenda.value = emptyList()
+    }
+
+    fun guardarAlarma(context: Context, titulo: String, hora: Int, minutos: Int, vibrar: Boolean, repeticion: String, tonoUri: String?) {
+        val nuevaAlarma = AlarmaDiaria(
+            titulo = titulo,
+            hora = hora,
+            minutos = minutos,
+            vibrar = vibrar,
+            repeticion = repeticion,
+            tonoUri = tonoUri // NUEVO: Guardamos la URL del tono
+        )
+        val listaActualizada = _alarmasAgenda.value.toMutableList()
+        listaActualizada.add(nuevaAlarma)
+        listaActualizada.sortBy { it.hora * 60 + it.minutos }
+        _alarmasAgenda.value = listaActualizada
+
+        programarAlarmaEnAndroid(context, nuevaAlarma)
+    }
+
+    private fun programarAlarmaEnAndroid(context: Context, alarma: AlarmaDiaria) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        // 1. Configuramos el Intent
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra("TITULO_ALARMA", alarma.titulo)
+            putExtra("VIBRAR_ALARMA", alarma.vibrar)
+            putExtra("TONO_URI", alarma.tonoUri) // NUEVO: Pasamos la URL al receiver
+        }
+
+        // 2. Generamos un RequestCode único y el PendingIntent como Broadcast
+        val requestCode = (alarma.hora * 60) + alarma.minutos // ID único basado en la hora para evitar conflictos
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // 3. Calculamos la hora exacta
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, alarma.hora)
+            set(Calendar.MINUTE, alarma.minutos)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        // Si la hora ya pasó hoy, la programamos para mañana
+        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        // 4. Programamos usando el método correcto según la versión de Android
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // Obligatorio para que suene con el celular en reposo/pantalla apagada
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    calendar.timeInMillis,
+                    pendingIntent
+                )
+            }
+            Log.d("DashboardViewModel", "Alarma programada exitosamente para las ${alarma.hora}:${alarma.minutos}")
+        } catch (e: SecurityException) {
+            Log.e("DashboardViewModel", "Error: Permiso SCHEDULE_EXACT_ALARM denegado", e)
+        }
+    }
+
+    fun eliminarAlarma(id: String) {
+        val listaActualizada = _alarmasAgenda.value.filter { it.id != id }
+        _alarmasAgenda.value = listaActualizada
     }
 
     fun cargarUsuario(uid: String) {

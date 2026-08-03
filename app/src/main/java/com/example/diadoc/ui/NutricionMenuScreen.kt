@@ -6,23 +6,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Blender
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.diadoc.ui.theme.DiaDocTheme
+import com.example.diadoc.utils.Resource
+import com.example.diadoc.viewmodel.PlanNutricionalViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NutricionMenuScreen(
+    viewModel: PlanNutricionalViewModel, // Nuevo parámetro
+    uid: String, // Nuevo parámetro
     onNavigateToPlanNutricional: () -> Unit,
+    onNavigateToGeneradorIA: () -> Unit, // Nuevo parámetro para la navegación
     onNavigateToRegistrarAlimento: () -> Unit,
     onNavigateToCrearReceta: () -> Unit,
     onNavigateToRecetario: () -> Unit
@@ -32,6 +41,16 @@ fun NutricionMenuScreen(
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val surfaceColor = MaterialTheme.colorScheme.surface
+
+    // Observamos el estado del plan para saber si ya existe uno hoy
+    val dietaState by viewModel.dietaState.collectAsState()
+
+    // Cargamos la dieta al entrar a la pantalla para verificar
+    LaunchedEffect(uid) {
+        viewModel.cargarDietaDeHoy(uid)
+    }
+
+    val existePlanHoy = dietaState is Resource.Success
 
     Scaffold(
         topBar = {
@@ -58,14 +77,16 @@ fun NutricionMenuScreen(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            // Tarjeta Principal: Plan Nutricional de Hoy (Color Semántico de Nutrición)
+            // Tarjeta Dinámica: Generar Plan o Ver Plan
             ElevatedCard(
-                onClick = onNavigateToPlanNutricional,
+                onClick = if (existePlanHoy) onNavigateToPlanNutricional else onNavigateToGeneradorIA,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = moduleNutrition.copy(alpha = 0.15f)),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = if (existePlanHoy) moduleNutrition.copy(alpha = 0.15f) else primaryColor.copy(alpha = 0.15f)
+                ),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
@@ -75,15 +96,24 @@ fun NutricionMenuScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.RestaurantMenu,
+                        imageVector = if (existePlanHoy) Icons.Default.RestaurantMenu else Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = moduleNutrition,
+                        tint = if (existePlanHoy) moduleNutrition else primaryColor,
                         modifier = Modifier.size(40.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Mi Plan Nutricional", color = moduleNutrition, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
-                        Text("Revisar tus comidas y check-in del día.", color = onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = if (existePlanHoy) "Mi Plan Nutricional" else "Generar Plan con IA",
+                            color = if (existePlanHoy) moduleNutrition else primaryColor,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = if (existePlanHoy) "Revisar tus comidas y check-in del día." else "Crea tu menú de hoy adaptado a tus métricas.",
+                            color = onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }

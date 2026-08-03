@@ -59,7 +59,8 @@ import kotlinx.coroutines.delay
 fun PlanNutricionalScreen(
     viewModel: PlanNutricionalViewModel,
     uid: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToGeneradorIA: () -> Unit // Nuevo parámetro para regenerar
 ) {
     val recetarioViewModel: RecetarioViewModel = viewModel()
     val context = LocalContext.current
@@ -216,6 +217,20 @@ fun PlanNutricionalScreen(
                                 }
                             )
                         }
+
+                        // NUEVO BOTÓN: Regenerar Plan al final de la lista
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onNavigateToGeneradorIA,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Regenerar Menú Completo", fontWeight = FontWeight.Bold)
+                        }
+
                         Spacer(modifier = Modifier.height(32.dp))
                     }
                 }

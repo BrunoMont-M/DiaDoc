@@ -197,7 +197,6 @@ fun AppNavigation(
                     uid = userUid,
                     onNavigateToSettings = { navController.navigate("ajustes/$uid") },
                     onNavigateToSOS = { navController.navigate("dashboard_sos") },
-                    onNavigateToGenerador = { navController.navigate("generador_ia/$uid") },
                     onNavigateToBitacora = { navController.navigate("bitacora/$uid") },
                     onNavigateToActividad = { navController.navigate("actividad/$uid") }
                 )
@@ -337,7 +336,8 @@ fun AppNavigation(
                 PlanNutricionalScreen(
                     viewModel = planViewModel,
                     uid = uid,
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToGeneradorIA = { navController.navigate("generador_ia/$uid") }
                 )
             }
 
@@ -375,11 +375,14 @@ fun AppNavigation(
             }
 
             composable("menu_nutricion") {
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val planNutricionalViewModel: PlanNutricionalViewModel = viewModel()
+
                 NutricionMenuScreen(
-                    onNavigateToPlanNutricional = {
-                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-                        navController.navigate("plan_nutricional/$uid")
-                    },
+                    viewModel = planNutricionalViewModel,
+                    uid = uid,
+                    onNavigateToPlanNutricional = { navController.navigate("plan_nutricional/$uid") },
+                    onNavigateToGeneradorIA = { navController.navigate("generador_ia/$uid") },
                     onNavigateToRegistrarAlimento = { navController.navigate("registrar_alimento") },
                     onNavigateToCrearReceta = { navController.navigate("crear_receta") },
                     onNavigateToRecetario = { navController.navigate("recetario") }

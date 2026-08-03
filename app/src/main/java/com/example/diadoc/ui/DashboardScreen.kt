@@ -4,13 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -22,13 +24,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.diadoc.model.Ejercicio
@@ -42,14 +46,13 @@ import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.chart.line.lineSpec
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     uid: String,
     onNavigateToSettings: () -> Unit,
     onNavigateToSOS: () -> Unit,
-    onNavigateToGenerador: () -> Unit,
     onNavigateToBitacora: () -> Unit,
     onNavigateToActividad: () -> Unit
 ) {
@@ -61,6 +64,7 @@ fun DashboardScreen(
     val metricaDinamica by viewModel.metricaDinamica.collectAsState()
 
     val valorBiometriaAbsoluto by viewModel.valorBiometriaAbsoluto.collectAsState()
+    val alarmasAgenda by viewModel.alarmasAgenda.collectAsState()
 
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val comidasHoy by viewModel.comidasHoy.collectAsState()
@@ -100,6 +104,9 @@ fun DashboardScreen(
 
     var agendaExpanded by remember { mutableStateOf(true) }
     var infoPopupType by remember { mutableStateOf<String?>(null) }
+
+    // Estado para el Modal de Configuración de Alarmas
+    var showAlarmModal by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     var lastScrollOffset by remember { mutableStateOf(0) }
@@ -195,23 +202,36 @@ fun DashboardScreen(
                 }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
-                    FilterChip(
-                        selected = false,
+                    Button(
                         onClick = { if (planHoy != null) viewModel.sumarVasoAgua() },
-                        label = { Text(if (planHoy != null) "+1 Vaso ($labelVaso)" else "Generá un plan") },
-                        leadingIcon = { Icon(Icons.Default.WaterDrop, contentDescription = null, tint = moduleHydration) },
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    FilterChip(
-                        selected = false,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = moduleHydration,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(Icons.Default.WaterDrop, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (planHoy != null) "+1 Vaso" else "Agua", fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
                         onClick = onNavigateToActividad,
-                        label = { Text("Entrené Hoy") },
-                        leadingIcon = { Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = moduleExercise) },
-                        shape = RoundedCornerShape(16.dp)
-                    )
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = moduleExercise,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(Icons.Default.FitnessCenter, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Entrené Hoy", fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 if (tipDelDia != null) {
@@ -252,7 +272,6 @@ fun DashboardScreen(
                         else -> Icons.Default.LocalFireDepartment
                     }
 
-                    // AHORA EVALUAMOS SIEMPRE SOBRE EL VALOR CRUDO (mg/dL) PARA DECIDIR EL COLOR
                     val valorEvaluacion = valorBiometriaAbsoluto ?: 0f
 
                     val colorTarjeta = when {
@@ -342,7 +361,11 @@ fun DashboardScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium))
-                        .clickable { agendaExpanded = !agendaExpanded },
+                        .clip(RoundedCornerShape(16.dp))
+                        .combinedClickable(
+                            onClick = { agendaExpanded = !agendaExpanded },
+                            onLongClick = { showAlarmModal = true }
+                        ),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                 ) {
@@ -351,31 +374,51 @@ fun DashboardScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Event, contentDescription = "Agenda", tint = MaterialTheme.colorScheme.onSecondaryContainer)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Agenda Interna de DiaDoc", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                Text("Agenda Diaria", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                             Icon(if (agendaExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = "Expandir")
                         }
 
                         if (agendaExpanded) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Comida Principal", style = MaterialTheme.typography.labelLarge)
-                            }
-                            Text(
-                                text = if (planHoy != null) "Plan activo: Sigue tu menú sugerido." else "Sugerido por IA (Plan pendiente)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 24.dp, top = 2.dp, end = 60.dp)
-                            )
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            DiaDocButton(
-                                text = if (planHoy != null) "Regenerar Plan con IA" else "Generar Plan con IA",
-                                icon = rememberVectorPainter(Icons.Default.AutoAwesome),
-                                onClick = onNavigateToGenerador,
-                                modifier = Modifier.fillMaxWidth().padding(end = 40.dp)
-                            )
+                            if (alarmasAgenda.isEmpty()) {
+                                Text(
+                                    "No hay alarmas configuradas.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    fontStyle = FontStyle.Italic
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "Mantén presionada esta tarjeta para configurar tus recordatorios de agua, comidas y ejercicio.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                alarmasAgenda.forEach { alarma ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = String.format("%02d:%02d", alarma.hora, alarma.minutos),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.width(60.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(alarma.titulo, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                            Text(alarma.repeticion, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
+                                        }
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.1f))
+                                }
+                            }
                         }
                     }
                 }
@@ -506,6 +549,195 @@ fun DashboardScreen(
                 confirmButton = { TextButton(onClick = { infoPopupType = null }) { Text("Cerrar") } },
                 icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
             )
+        }
+
+        if (showAlarmModal) {
+            ModalAlarma(
+                onDismiss = { showAlarmModal = false },
+                onSave = { titulo, hora, minutos, vibrar, repeticion, tonoUri ->
+                    viewModel.guardarAlarma(context, titulo, hora, minutos, vibrar, repeticion, tonoUri)
+                    showAlarmModal = false
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ModalAlarma(onDismiss: () -> Unit, onSave: (String, Int, Int, Boolean, String, String?) -> Unit) {
+    var titulo by remember { mutableStateOf("") }
+    var horaText by remember { mutableStateOf("00") }
+    var minutosText by remember { mutableStateOf("00") }
+    var vibrar by remember { mutableStateOf(true) }
+    var repeticion by remember { mutableStateOf("Todos los días") }
+    val diasSeleccionados = remember { mutableStateListOf<String>() }
+
+    // ESTADOS PARA EL TONO
+    var tonoUri by remember { mutableStateOf<String?>(null) }
+    var tonoNombre by remember { mutableStateOf("Predeterminado") }
+    val context = LocalContext.current
+
+    // LANZADOR PARA EL SELECTOR DE TONOS NATIVO
+    val ringtoneLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val uri: android.net.Uri? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, android.net.Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+
+            if (uri != null) {
+                tonoUri = uri.toString()
+                val ringtone = android.media.RingtoneManager.getRingtone(context, uri)
+                tonoNombre = ringtone.getTitle(context) ?: "Tono seleccionado"
+            } else {
+                tonoUri = null
+                tonoNombre = "Predeterminado"
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp).fillMaxWidth().padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Configurar Nueva Alarma", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+
+            OutlinedTextField(
+                value = titulo,
+                onValueChange = { titulo = it },
+                label = { Text("Título (Ej: Tomar agua, Desayuno)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Hora (formato 24h):", style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = horaText,
+                        onValueChange = { if (it.length <= 2) horaText = it.filter { char -> char.isDigit() } },
+                        modifier = Modifier
+                            .width(65.dp)
+                            .onFocusChanged { if (it.isFocused) horaText = "" },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
+                    )
+                    Text(" : ", modifier = Modifier.padding(horizontal = 8.dp), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                    OutlinedTextField(
+                        value = minutosText,
+                        onValueChange = { if (it.length <= 2) minutosText = it.filter { char -> char.isDigit() } },
+                        modifier = Modifier
+                            .width(65.dp)
+                            .onFocusChanged { if (it.isFocused) minutosText = "" },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center)
+                    )
+                }
+            }
+
+            // SELECCIÓN DE TONO
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val intent = android.content.Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_ALARM)
+                            putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                            tonoUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.net.Uri.parse(it)) }
+                        }
+                        ringtoneLauncher.launch(intent)
+                    }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Tono de alarma", style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = tonoNombre, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Vibrar al sonar", style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = vibrar, onCheckedChange = { vibrar = it })
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Repetición", style = MaterialTheme.typography.bodyLarge)
+                    TextButton(onClick = {
+                        repeticion = when (repeticion) {
+                            "Una vez" -> "Todos los días"
+                            "Todos los días" -> "Personalizado"
+                            else -> "Una vez"
+                        }
+                    }) {
+                        Text(repeticion, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Animación para mostrar u ocultar la selección de días
+                AnimatedVisibility(visible = repeticion == "Personalizado") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        val dias = listOf("L", "M", "X", "J", "V", "S", "D")
+                        dias.forEach { dia ->
+                            val seleccionado = diasSeleccionados.contains(dia)
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable {
+                                        if (seleccionado) diasSeleccionados.remove(dia) else diasSeleccionados.add(dia)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = dia,
+                                    color = if (seleccionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) { Text("Cancelar") }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        val h = horaText.toIntOrNull() ?: 0
+                        val m = minutosText.toIntOrNull() ?: 0
+
+                        val repFinal = if (repeticion == "Personalizado") {
+                            if (diasSeleccionados.isEmpty()) "Una vez" else diasSeleccionados.joinToString(", ")
+                        } else {
+                            repeticion
+                        }
+
+                        onSave(titulo, h, m, vibrar, repFinal, tonoUri)
+                    },
+                    enabled = titulo.isNotBlank()
+                ) {
+                    Text("Guardar Alarma")
+                }
+            }
         }
     }
 }
