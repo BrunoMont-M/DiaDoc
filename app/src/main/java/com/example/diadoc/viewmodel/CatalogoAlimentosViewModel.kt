@@ -56,13 +56,16 @@ class CatalogoAlimentosViewModel(
         }
     }
 
+    // Se agregaron indiceGlucemico y alergenos a la firma de la función
     fun guardarAlimento(
         codAlimento: String?,
         nombre: String,
         kcal: Double,
         grasas: Double,
         carbohidratos: Double,
-        proteinas: Double
+        proteinas: Double,
+        indiceGlucemico: Int,
+        alergenos: List<String>
     ) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -73,7 +76,9 @@ class CatalogoAlimentosViewModel(
                     kcalBase = kcal,
                     grasasBase = grasas,
                     carbohidratosBase = carbohidratos,
-                    proteinasBase = proteinas
+                    proteinasBase = proteinas,
+                    indiceGlucemico = indiceGlucemico,
+                    alergenos = alergenos
                 )
                 repository.guardarAlimento(alimento)
                 cargarAlimentos() // Refresca la lista después de guardar
@@ -90,7 +95,7 @@ class CatalogoAlimentosViewModel(
             _isLoading.value = true
             try {
                 repository.eliminarAlimento(codAlimento)
-                cargarAlimentos() // Refresca la lista después de borrar
+                cargarAlimentos()
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {

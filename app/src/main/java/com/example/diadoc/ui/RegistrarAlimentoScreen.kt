@@ -307,7 +307,9 @@ fun RegistrarAlimentoScreen(
                                     kcal = calorias.toDoubleOrNull() ?: 0.0,
                                     grasas = grasas.toDoubleOrNull() ?: 0.0,
                                     carbohidratos = carbohidratos.toDoubleOrNull() ?: 0.0,
-                                    proteinas = proteinas.toDoubleOrNull() ?: 0.0
+                                    proteinas = proteinas.toDoubleOrNull() ?: 0.0,
+                                    indiceGlucemico = 0,
+                                    alergenos = emptyList()
                                 )
                                 idEnEdicion = null
                                 nombreAlimento = ""

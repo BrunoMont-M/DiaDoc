@@ -21,6 +21,9 @@ class CatalogoEjerciciosViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // Guardamos la lista original para filtrar localmente sin llamar a BD
+    private var listaOriginal: List<Ejercicio> = emptyList()
+
     init {
         cargarEjercicios()
     }
@@ -30,11 +33,24 @@ class CatalogoEjerciciosViewModel(
             _isLoading.value = true
             try {
                 val listaDesdeFirebase = repository.obtenerTodosLosEjercicios()
-                _ejercicios.value = listaDesdeFirebase
+                listaOriginal = listaDesdeFirebase
+                _ejercicios.value = listaOriginal
             } catch (e: Exception) {
                 _ejercicios.value = emptyList()
+                listaOriginal = emptyList()
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun buscarEjercicios(query: String) {
+        if (query.isBlank()) {
+            _ejercicios.value = listaOriginal
+        } else {
+            val queryLower = query.lowercase().trim()
+            _ejercicios.value = listaOriginal.filter { ejercicio ->
+                ejercicio.nombreEjercicio.lowercase().contains(queryLower)
             }
         }
     }
